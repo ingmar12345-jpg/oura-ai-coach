@@ -4727,6 +4727,11 @@ function AccountSheet({ acc, onClose }) {
       <Panel style={{ marginBottom: 10 }}>
         <Label>Konto</Label>
         <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>{authUser.email}</div>
+        {!authUser.emailVerified && (
+          <div style={{ fontSize: 12.5, color: T.faint, lineHeight: 1.5, marginBottom: 12 }}>
+            Saatsime sulle kinnituskirja — palun kontrolli oma postkasti (ka rämpsposti kausta).
+          </div>
+        )}
         <Btn full onClick={signOutUser}>
           Logi välja
         </Btn>
@@ -5146,7 +5151,12 @@ function useAccount() {
     setAuthError("");
     setAuthBusy(true);
     try {
-      await authApi.createUserWithEmailAndPassword(email, password);
+      const cred = await authApi.createUserWithEmailAndPassword(email, password);
+      try {
+        await cred.user.sendEmailVerification();
+      } catch (e) {
+        console.error("NeedMore sendEmailVerification error:", e);
+      }
     } catch (e) {
       console.error("NeedMore signUp error:", e);
       setAuthError(friendlyAuthError(e));
