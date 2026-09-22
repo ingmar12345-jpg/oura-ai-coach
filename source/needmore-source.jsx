@@ -5082,7 +5082,8 @@ function friendlyAuthError(e) {
   if (code === "auth/network-request-failed") return "Internetiühendus katkes.";
   if (code === "auth/operation-not-allowed" || code === "auth/configuration-not-found")
     return "Konto loomine pole veel Firebase's sisse lülitatud. Ava Firebase konsool → Authentication → Sign-in method → luba \"Email/Password\" → Save (vt README.txt).";
-  return "Midagi läks valesti. Proovi uuesti." + (code ? ` (${code})` : "");
+  const detail = code || (e && e.message) || "";
+  return "Midagi läks valesti. Proovi uuesti." + (detail ? ` (${detail})` : "");
 }
 
 const emptyProfile = () => ({
@@ -5147,6 +5148,7 @@ function useAccount() {
     try {
       await authApi.createUserWithEmailAndPassword(email, password);
     } catch (e) {
+      console.error("NeedMore signUp error:", e);
       setAuthError(friendlyAuthError(e));
     }
     setAuthBusy(false);
@@ -5157,6 +5159,7 @@ function useAccount() {
     try {
       await authApi.signInWithEmailAndPassword(email, password);
     } catch (e) {
+      console.error("NeedMore signIn error:", e);
       setAuthError(friendlyAuthError(e));
     }
     setAuthBusy(false);

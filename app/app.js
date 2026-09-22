@@ -4023,7 +4023,8 @@ ${xref}
     if (code === "auth/network-request-failed") return "Interneti\xFChendus katkes.";
     if (code === "auth/operation-not-allowed" || code === "auth/configuration-not-found")
       return `Konto loomine pole veel Firebase's sisse l\xFClitatud. Ava Firebase konsool \u2192 Authentication \u2192 Sign-in method \u2192 luba "Email/Password" \u2192 Save (vt README.txt).`;
-    return "Midagi l\xE4ks valesti. Proovi uuesti." + (code ? ` (${code})` : "");
+    const detail = code || (e && e.message) || "";
+    return "Midagi l\xE4ks valesti. Proovi uuesti." + (detail ? ` (${detail})` : "");
   }
   const emptyProfile = () => ({
     plan: "free",
@@ -4084,6 +4085,7 @@ ${xref}
       try {
         await authApi.createUserWithEmailAndPassword(email, password);
       } catch (e) {
+        console.error("NeedMore signUp error:", e);
         setAuthError(friendlyAuthError(e));
       }
       setAuthBusy(false);
@@ -4094,6 +4096,7 @@ ${xref}
       try {
         await authApi.signInWithEmailAndPassword(email, password);
       } catch (e) {
+        console.error("NeedMore signIn error:", e);
         setAuthError(friendlyAuthError(e));
       }
       setAuthBusy(false);
