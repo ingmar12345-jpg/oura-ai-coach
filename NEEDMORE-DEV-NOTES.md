@@ -1,0 +1,225 @@
+# NeedMore äpp — üleandmise kokkuvõte (jätkamiseks ChatGPT-s)
+
+See dokument on mõeldud kopeerimiseks ChatGPT vestluse algusesse (koos lisatud
+lähtekoodifailidega), et uus assistent saaks täpselt sealt jätkata, kus pooleli jäi.
+
+## Mis see äpp on
+
+"NeedMore" — jagatud pere ostunimekirja ja kulustatistika äpp kahele inimesele
+(kaks eri telefoni, iPhone + Android), mis:
+- ennustab tarbimismustri põhjal, mis kodus otsa saamas on (algoritm ostuajaloo pealt)
+- lubab ühel lisada nimekirja, teine näeb reaalajas ja saab poes linnukesega ära märkida
+- loeb tšeki fotolt automaatselt tooted+hinnad (AI, Claude API kaudu)
+- pakub AI-retseptisoovitusi kodus olevatest toodetest
+- on paigaldatav "päris äpina" mõlema telefoni avakuvale (PWA)
+
+## Praegune tehniline seis (12.09.2026 seisuga)
+
+**Elus link:** https://needmore-pere.netlify.app (Netlify, konto omanik: Ingmar)
+
+**Firebase projekt:** `needmore-8ada2` (Firestore andmebaas, asukoht eur3/europe-west)
+- Andmed asuvad teel `households/<pere-kood>/...` — pere-kood on lihtne tekstivõti
+  (nt "roustiku-pere"), ei kasuta kasutajakontosid/autentimist
+- **TÄHTIS:** Firestore on hetkel "test mode" turvareeglitega, mis **aeguvad ~30 päeva
+  pärast loomist (u. 12. oktoober 2026)**. Enne seda tuleb kirjutada päris
+  security rules (praegu on kõigil täielik luge/kirjuta ligipääs).
+
+**Netlify sait:** `needmore-pere` (drag-and-drop deploy, mitte Git-põhine)
+- Keskkonnamuutuja `ANTHROPIC_API_KEY` on seadistatud (Site configuration ->
+  Environment variables), märgitud "Contains secret values"
+- Serverless funktsioon `functions/ai.js` pöördub Claude API poole
+  (`https://api.anthropic.com/v1/messages`), mudel on määratud konstandina
+  `claude-sonnet-4-6` (vaikimisi; ülekirjutatav env muutujaga `ANTHROPIC_MODEL`)
+- `netlify.toml` osutab funktsioonide kausta: `functions = "functions"`
+
+## Arhitektuur / failid
+
+- **app_head.jsx** — kogu taaskasutatav UI: disainisüsteem (värvid, ikoonid,
+  komponendid), ennustusalgoritm (`buildProducts`), kõik vaated (ListView,
+  AddView, RecipesView, MoneyTab/statistika, ProductSheet, SettingsSheet jne),
+  AI-abifunktsioonid (`readReceipt`, `fetchRecipes`, `fetchRecipeDetail`, mis
+  kõik kutsuvad `callAI()` helperit, mis omakorda POST'ib
+  `/.netlify/functions/ai` peale)
+- **app_tail.jsx** — andmekiht ja App-komponent: Firebase Firestore adapter
+  (`makeDb`), local-only fallback ilma Firebase'ita (`makeLocalDb`,
+  localStorage-põhine, kasutusel kui `window.__FIREBASE_CONFIG__` puudub),
+  `HouseholdGate` (pere-koodi sisestamise ekraan), põhi-`App` komponent
+- **app_full.jsx** = app_head.jsx + app_tail.jsx kokku pandult — see on
+  esbuild'i sisend
+- **app.js** = app_full.jsx kompileeritud tavaliseks JS-iks (esbuild, JSX ->
+  React.createElement, ilma runtime-Babel'ita — see oli teadlik valik, kuna
+  runtime-transpileerimine (Babel-standalone) põrkas algselt CSP piirangute
+  vastu ühes varasemas hostimiskeskkonnas)
+- **functions/ai.js** — Netlify serverless funktsioon, mis hoiab
+  ANTHROPIC_API_KEY't serveripoolel ja edastab pilte/prompte Claude API-le,
+  parsib JSON-vastuse, tagastab `{ok:true, data}` või `{ok:false, code, message}`
+- **netlify.toml** — funktsioonide kausta konfiguratsioon
+- **sw.js** — service worker (PWA), cache-nimi `needmore-v3`. Kasutab
+  "network-first" strateegiat (proovib alati võrku enne, langeb vahemällu
+  ainult võrguühenduse puudumisel) — see parandus tehti pärast seda, kui
+  vana "cache-first" strateegia jättis kasutaja telefoni vana äpiversiooni
+  püsima pärast uuendust. **Iga tuleviku-deploy'i puhul, kui app.js
+  sisu muutub, tasub CACHE muutuja väärtust tõsta (nt "needmore-v4"), et
+  vältida sama probleemi kordumist.**
+- **index.html / index_top.html / index_mid.html / index_tail.html** —
+  index.html on kokku pandud index_top + react.min.js + index_mid +
+  react-dom.min.js + index_tail (React/ReactDOM on inline'itud, mitte
+  CDN'ist laetud — kasutaja eelistus vältida väliseid CDN-sõltuvusi).
+  index_tail.html sisaldab ka `window.__FIREBASE_CONFIG__` objekti tegelike
+  väärtustega (need loeti kasutaja Firebase konsooli ekraanipildilt — VÄIKE
+  RISK, et mõni sarnane märk sai valesti loetud; kui äpp lakkab ühel hetkel
+  Firebase'iga ühendumast, kontrolli seda esimesena).
+
+## Mis on juba VALMIS ja testitud
+
+- Jagatud ostunimekiri kahe telefoni vahel (Firestore reaalajas sync) —
+  testitud päriselt kahe seadme vahel, töötab
+- Ennustusalgoritm (mis on otsas, kui kiiresti otsa saab)
+- Kulustatistika (Money/Stats vaade, kuu/nädala graafikud)
+- Hinnangulise ostu loogika: kui "Lõpeta ostukäik" tehakse ilma tšekita,
+  luuakse "estimated" tšekk viimase teadaoleva hinnaga; kui päris tšekk
+  lisatakse hiljem (14 päeva aknas), asendab see hinnangulise rea
+- PWA install mõlemale platvormile (Android testitud päriselt, iPhone
+  juhendatud aga mitte veel kasutaja poolt kinnitatud)
+- Tšeki AI-lugemine (Pildista tšekk) ja AI-retseptid — kood on valmis ja
+  Playwright-testitud mock-AI vastustega (kõik vood: pildi üleslaadimine ->
+  parsitud read -> review -> salvestamine; retseptide genereerimine ->
+  detailvaate laadimine). **Reaalse Claude API võtmega pole seda veel
+  kasutaja poolt lõpuni läbi testitud** — viimane samm oli Netlify
+  vahemälu (service worker cache) probleemi lahendamine, mis takistas
+  uue versiooni nägemist kasutaja telefonis.
+
+## POOLELI / järgmisena vaja teha
+
+1. **Kinnitada, et AI tšeki-lugemine reaalselt töötab** kasutaja telefonis
+   pärast vahemälu tühjendamist ja uue `app` kausta üleslaadimist Netlify's
+   (see oli täpselt see samm, mille juures vestlus katkes)
+2. **Firestore security rules** — LAHENDATUD 19.09.2026 osas, mis puudutab
+   `households/<kood>/**` (ei aegu enam). Kui lisati "Minu konto" funktsioon
+   (vt allpool), tuleb reeglitele juurde lisada ka `users/{uid}` match-blokk —
+   vaata README.txt-st täpne tekst, mis tuleb Firebase konsoolis Publish'ida.
+3. **iPhone'i "Lisa avakuvale"** — juhendatud, aga mitte kinnitatud, et
+   teine pereliige on selle oma iPhone'i teinud
+4. Võimalikud edasised soovid: PDF-eksport on juba olemas (`downloadRecipe`,
+   `recipePdf` — omaette, ei vaja AI-d), täiendavad statistika-vaated,
+   rohkem tootekategooriaid, vms — kasutajaga läbi rääkimata
+
+## 19.09.2026 lisandus: konto, teavitused, Pro pakett
+
+Tehti täielik UX/loogika audit (Playwright'iga läbi klikitud kõik vood) ja
+paranadatud rida päris bugisid: koguse-parandus tšekil ei uuendanud enam
+ühikuhinda õigesti; "Vali tavalised tooted" nupp kadus jäädavalt ära, kui
+tootekogus ületas 14 (nüüd on see ka Seadetes alati kättesaadav); tühja
+nimekirja tuvastus kasutas vale muutujat (nüüd eristab "nimekiri on
+tühi" vs "kõik on praegu olemas"); "Vaheta kood" ja "Taasta failist"
+said kinnitusdialoogi (varem üks vajutus ja kõik oli kadunud); tootele,
+mille jälgimine oli peatatud, taastub jälgimine automaatselt, kui seda
+uuesti ostetakse; jne — täisnimekiri on git'i baseline-commiti sõnumis
+ja vestluse ajaloos.
+
+Lisati ka reaalne isiklik kontosüsteem Firebase Authentication'iga
+(email+parool), täiesti eraldiseisev pere-koodi jagatud andmetest:
+- `useAccount()` hook ja `AccountSheet` komponent (app_tail.jsx / app_head.jsx)
+- Isiklikud andmed elavad teel `users/{uid}` (MITTE households/ alla)
+- Profiilis: `plan` ("free"/"pro") ja `notifications` ({enabled, categories})
+- Retseptid-vaade on nüüd `plan === "pro"` taga (paywall UI olemas)
+- Kohalikud brauseri-teavitused (Notification API) tootele, mis läheb
+  "otsas" olekusse, kui kasutaja on need enda kontos sisse lülitanud —
+  EI OLE päris push, töötab ainult kui äpp on hiljuti avatud olnud
+- Pro pakett on "testrežiimis" (nupp lülitab kohe sisse) — PÄRIS MAKSED
+  (nt Stripe) POLE seadistatud, see vajab kasutaja enda otsust hinna ja
+  Stripe konto kohta enne edasi minekut
+- Nõuab kaks Firebase konsooli sammu, mis pole veel tehtud (vt README.txt):
+  1) Authentication -> Sign-in method -> Email/Password -> Enable
+  2) Firestore Rules uuendamine, et lisada `users/{uid}` match-blokk
+
+Testimiseks laiendati `mock-firebase.js`-i minimaalse in-memory Auth
+mockiga (`window.firebase.auth()`), et kogu konto-voogu saaks Playwright'iga
+läbi testida ilma päris Firebase'ita.
+
+Enne neid muudatusi tehti git baseline-commit (`git log` selles kaustas) ja
+täielik kausta-koopia `/home/claude/backups/pwa-baseline-2026-09-19/` —
+kui uus versioon ei meeldi, saab sealt taastada.
+
+## 19.09.2026 lisandus 2: Nädalaplaan (söögikorra planeerimine)
+
+Ehitati üles kasutaja järgmine soov ("Ehita see ka nüüd") — päris
+söögikorra-planeerimise tööriist, mitte ainult retseptisoovitused.
+Retseptid-vaates on nüüd kaks alamsakki: "Retseptisoovitused" (vana
+funktsioon) ja "Nädalaplaan" (uus). Uus `MealPlanner` komponent
+(app_head.jsx, `RecipesView` ja `RecipeSheet` vahel) haldab:
+- nädala navigatsiooni (esmaspäev-põhine, `off` state nihkega),
+- `data.mealPlan = { "<YYYY-MM-DD>": { id?, name } }` andmemudelit,
+- päeva peale valimist: kas olemasolev AI-retsept (klõps avab sama
+  `RecipeSheet` mis Retseptisoovitused sakis) või vabalt kirjutatud
+  toidunimi (ei ava retsepti-vaadet, kuna sellel pole `id`-d),
+- kustutamist "×" nupuga.
+
+Nädalaplaan on Pro pakett (sama paywall mis retseptidel, kuna elab
+sama `RecipesView` sees). Testitud täielikult Playwright'iga
+(`probe-mealplan.js`): konto loomine, Pro testrežiimi lülitamine,
+retseptide genereerimine (mock AI), retsepti määramine esmaspäevale,
+vaba teksti määramine teisipäevale, nädala vahetamine edasi-tagasi
+(andmed püsivad), retsepti-põhise päeva avamine (RecipeSheet ilmub),
+päeva tühjendamine "×" nupuga — kõik õnnestus, 0 konsooli viga.
+
+`sw.js` CACHE tõsteti `needmore-v5` -> `needmore-v6`.
+
+## 19.09.2026 lisandus 3: KRIITILINE parandus — äpp jäi "Avan…" peale kinni
+
+Pärast eelmise lisanduse (konto/Auth) live'i panekut jäi äpp reaalse Firebase
+küljes PÄRISELT kinni "Avan…" tekstile (index.html staatiline fallback),
+mitte ei jõudnudki Reacti renderdamiseni. Brauseri konsoolist selgus:
+
+  Uncaught FirebaseError: Firebase: No Firebase App '[DEFAULT]' has been
+  created - call firebase.App.initializeApp() (app-compat/no-app).
+
+Põhjus: `app_tail.jsx` mooduli tasemel (mitte React komponendi sees) oli rida
+`const authApi = HAS_AUTH ? window.firebase.auth() : null;`, mis jookseb
+KOHE app.js laadimisel — aga `firebase.initializeApp()` kutsuti alles hiljem,
+App komponendi enda `useEffect`'is (st alles pärast Reacti esimest renderdust).
+Nii viskas `firebase.auth()` vea juba enne, kui React üldse jõudis midagi
+kuvada, ja KOGU app.js jäi pooleli seisma — sellepärast nägi kasutaja
+lõputult staatilist "Avan…" teksti.
+
+Testides seda ei tabatud, sest `mock-firebase.js` lubas `auth()`/`firestore()`
+kutseid ka enne `initializeApp()`-i (leebem kui päris SDK). Parandati KAKS asja:
+1. `app_tail.jsx`: `firebase.initializeApp()` viidi mooduli algusesse (kohe
+   `FIREBASE_CONFIG` järel, `try/catch`'iga `FIREBASE_INIT_ERROR` muutujasse),
+   nii et see jõuab käivituda enne, kui mistahes hilisem kood (sh `authApi`)
+   `firebase.auth()`'it kutsub. App komponendi oma useEffect kannab nüüd
+   lihtsalt selle tulemuse React state'i üle, ei kutsu `initializeApp()`-i
+   enam ise teist korda.
+2. `mock-firebase.js`: `firestore()`/`auth()` viskavad nüüd sama vea, mis
+   päris SDK, kui `initializeApp()` pole veel jooksnud — nii tabab
+   Playwright-test edaspidi sama klassi vea ise ära, mitte alles kasutaja.
+
+`sw.js` CACHE tõsteti `needmore-v6` -> `needmore-v7`. Kõik olemasolevad
+Playwright testid (probe-accounts, probe-collision, probe-mealplan,
+probe-fixes, probe-progressbar, probe-qty) jooksid pärast parandust uuesti
+läbi, 0 konsooli viga.
+
+## Kuidas jätkata
+
+Kaasas olevad failid (zip'is):
+- `source/needmore-source.jsx` — kogu loetav lähtekood (app_full.jsx)
+- `app/` — valmis deploy-kaust (see, mida Netlify'sse lohistatakse):
+  index.html, app.js, sw.js, manifest.webmanifest, ikoonid,
+  functions/ai.js, netlify.toml
+- `README.txt` — kasutaja-suunatud seadistusjuhend (Firebase + AI võtme
+  seadistus)
+
+Kui teed muudatusi lähtekoodis, pea meeles järjekorda:
+1. Muuda `source/needmore-source.jsx` (või vastavaid app_head.jsx/app_tail.jsx
+   faile, kui neid eraldi hoiad)
+2. Kompileeri esbuild'iga plain JS-iks: `esbuild app_full.jsx --bundle=false
+   --format=iife --outfile=app.js`
+3. Kopeeri uus app.js `app/` kausta
+4. Kui muutsid app.js sisu, tõsta sw.js CACHE-nime versiooni (vahemälu
+   probleemi vältimiseks)
+5. Anna kasutajale uus `app` kaust, mille ta lohistab Netlify Deploys
+   vahekaardile (üle olemasoleva saidi)
+
+Kasutaja pole IT-taustaga, eelistab valmis lahendusi ja täpseid
+samm-sammult juhiseid koos ekraanipiltidega (tema jagab ekraanipilte,
+sina ütled täpselt kuhu vajutada).
