@@ -3595,22 +3595,35 @@ function Wordmark({ height = 34 }) {
 }
 
 function GuideSheet({ onClose }) {
+  const [faq, setFaq] = useState(false);
   const steps = [
+    [
+      "Loo pere-kood",
+      "Mõtle koos pereliikmetega välja üks ühine kood ja sisestage see kõigis telefonides. Kõik, kes koodi teavad, näevad ja saavad muuta sama nimekirja — reaalajas, kontot pole selleks vaja.",
+    ],
     [
       "Lisa ost",
       "Ava „Tšekk“, pildista kassatšekk või vali pilt galeriist. Read loetakse ise sisse ja saad need enne salvestamist üle vaadata. Ilma pildita saab ka: „sisesta ost käsitsi“.",
     ],
     [
-      "Vaata, mida on vaja osta",
-      "„Nimekiri“ toob ette selle, mis on otsas või saab enne järgmist poeskäiku otsa. Riba täitub sedamööda, kuidas päevi möödub.",
+      "Nimekiri täieneb iseenesest",
+      "Äpp õpib ostuajaloost, kui tihti iga toode kodus otsa saab, ja tõstab selle „Nimekirja“, kui aeg on käes. Sa ei pea ise midagi kirja panema — mida rohkem tšekke lisad, seda täpsem ennustus on.",
     ],
     [
       "Paranda, kui äpp eksib",
       "Puuduta toodet. Kui seda on veel kodus, vajuta „On veel“ — intervall pikeneb. Sealtsamast saab nime ja kategooriat muuta või jälgimise lõpetada.",
     ],
     [
-      "Retseptid ja kulud",
-      "„Retseptid“ pakub roogi sellest, mis peaks kodus olema. „Kulud“ näitab, kuhu raha läheb. „Seaded“ hoiab poepäevi, pere suurust ja varukoopiat.",
+      "Retseptid ja Nädalaplaan",
+      "„Retseptid“ pakub AI abiga roogi just sellest, mis kodus arvatavasti juba on. „Nädalaplaan“ aitab kogu nädala menüü ette planeerida — iga päeva jaoks kas mõni pakutud retsept või ise kirjutatud toit. Mõlemad kuuluvad Pro paketi alla.",
+    ],
+    [
+      "Kulud",
+      "„Kulud“ vaade näitab, kuhu raha kuu lõikes läheb ja milliste kategooriate peale kõige rohkem kulub.",
+    ],
+    [
+      "Minu konto",
+      "Inimese-kujuline nupp ülal päises avab ISIKLIKU konto (erineb pere-koodist). Sisse logides saad seadistada, millest ja millal äpp teavitab, ning näha, kas kasutad Tasuta või Pro paketti.",
     ],
   ];
 
@@ -3674,8 +3687,168 @@ function GuideSheet({ onClose }) {
         </div>
       </Panel>
 
+      <button
+        onClick={() => setFaq(true)}
+        style={{
+          border: "none",
+          background: "transparent",
+          color: T.gold,
+          fontFamily: FONT,
+          fontSize: 14,
+          fontWeight: 500,
+          cursor: "pointer",
+          width: "100%",
+          textAlign: "center",
+          padding: "10px 0",
+          marginBottom: 4,
+        }}
+      >
+        Korduma kippuvad küsimused (KKK)
+      </button>
+
       <Btn kind="solid" full onClick={onClose}>
         Sain aru
+      </Btn>
+
+      {faq && <FaqSheet onClose={() => setFaq(false)} />}
+    </Sheet>
+  );
+}
+
+function FaqSheet({ onClose }) {
+  const [open, setOpen] = useState(0);
+  const groups = [
+    {
+      label: "Nimekiri ja ennustus",
+      items: [
+        [
+          "Kuidas äpp teab, mis on kodus otsas?",
+          "Äpp vaatab sinu ostuajalugu: kui tihti oled mingit toodet varem ostnud, arvutab keskmise „kestvuse“ ja näitab tootel riba, mis täitub selle aja jooksul. Kui riba jõuab lõpuni, läheb toode „otsas“ olekusse ja tõuseb Nimekirja. Mida rohkem tšekke lisad, seda täpsem ennustus on.",
+        ],
+        [
+          "Miks äpp arvab, et miski on otsas, kuigi seda on veel kodus?",
+          "Puuduta toodet ja vajuta „On veel“ — see lükkab tähtaega edasi ja äpp õpib, et see toode kestab tegelikult kauem kui seni arvatud.",
+        ],
+        [
+          "Kas kaks inimest saavad korraga nimekirja muuta?",
+          "Jah. Kõik samas pere-koodis muudatused jõuavad kõigi telefonidesse reaalajas kohale, kui internetiühendus on olemas.",
+        ],
+      ],
+    },
+    {
+      label: "Tšekid",
+      items: [
+        [
+          "Kas tšeki fotolt lugemine on täpne?",
+          "Tšeki pilti loeb AI ja pakub read koos hindadega automaatselt valmis, aga need saab alati enne salvestamist üle vaadata ja käsitsi parandada.",
+        ],
+        [
+          "Kas tšekki saab lisada ka ilma pildita?",
+          "Jah, „Tšekk“ vaates on ka „sisesta ost käsitsi“ võimalus.",
+        ],
+      ],
+    },
+    {
+      label: "Retseptid, Nädalaplaan ja Pro pakett",
+      items: [
+        [
+          "Mis vahe on Retseptidel ja Nädalaplaanil?",
+          "„Retseptid“ pakub kohe AI roogi sellest, mida kodus arvatavasti on. „Nädalaplaan“ aitab kogu nädala peale ette mõelda — iga päeva jaoks saab valida kas mõne pakutud retsepti või kirjutada ise, mida süüa.",
+        ],
+        [
+          "Kas Pro pakett maksab praegu päriselt raha?",
+          "Ei, hetkel on Pro „testrežiimis“ — saab tasuta proovida. Päris makseid pole veel sisse ehitatud.",
+        ],
+      ],
+    },
+    {
+      label: "Minu konto ja teavitused",
+      items: [
+        [
+          "Kas pere-kood ja Minu konto on sama asi?",
+          "Ei. Pere-kood on jagatud ostunimekiri (mitu inimest sama koodiga näevad sama nimekirja, kontot pole vaja). Minu konto on isiklik (e-post + parool) — iga inimene saab enda oma teha ja sealt seadistada teavitusi ning näha oma paketti.",
+        ],
+        [
+          "Kas teavitused tulevad ka siis, kui äpp on suletud?",
+          "Praegu mitte täielikult — teavitused töötavad kõige paremini, kui äpp on hiljuti avatud olnud. Päris taustateavitused on üks võimalik tulevane täiendus.",
+        ],
+      ],
+    },
+    {
+      label: "Andmed ja turvalisus",
+      items: [
+        [
+          "Kuhu minu andmed salvestuvad ja kas need on turvalised?",
+          "Pere andmed (nimekiri, tšekid) salvestuvad pilve teie pere-koodi taha. Isiklikud kontoandmed (e-post, teavituste eelistused, pakett) on omaette kohas, mida näeb ainult see, kes on selle kontoga sisse loginud.",
+        ],
+        [
+          "Mis juhtub, kui unustan pere-koodi?",
+          "Kood on lihtsalt vabalt valitud tekst, mida keegi teine ei tea ilma sinu ütlemata. Kui unustad selle, küsi mõnelt pereliikmelt, kes juba nimekirja kasutab.",
+        ],
+        [
+          "Kas oma andmetest saab varukoopia teha?",
+          "Jah — Seadete alt leiad „Varunda faili“ (laeb kõik andmed ühte faili) ja „Taasta failist“, kui peaks vaja minema.",
+        ],
+      ],
+    },
+  ];
+
+  let flatIndex = -1;
+
+  return (
+    <Sheet onClose={onClose} z={90}>
+      <div style={{ fontSize: 20, letterSpacing: "-0.015em", marginBottom: 4 }}>
+        Korduma kippuvad küsimused
+      </div>
+      <div style={{ fontSize: 13, color: T.faint, marginBottom: 18 }}>
+        Puuduta küsimust, et vastus avada
+      </div>
+
+      {groups.map((g) => (
+        <div key={g.label} style={{ marginBottom: 14 }}>
+          <Label>{g.label}</Label>
+          <Panel>
+            {g.items.map(([q, a], i) => {
+              flatIndex++;
+              const idx = flatIndex;
+              const isOpen = open === idx;
+              return (
+                <div
+                  key={q}
+                  style={{
+                    padding: "12px 0",
+                    borderTop: i === 0 ? "none" : `1px solid ${T.hair}`,
+                  }}
+                >
+                  <div
+                    onClick={() => setOpen(isOpen ? -1 : idx)}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 10,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span style={{ fontSize: 14.5, fontWeight: 500 }}>{q}</span>
+                    <span style={{ color: T.faint, fontSize: 16, flexShrink: 0 }}>
+                      {isOpen ? "−" : "+"}
+                    </span>
+                  </div>
+                  {isOpen && (
+                    <div style={{ fontSize: 14, color: T.soft, lineHeight: 1.55, marginTop: 8 }}>
+                      {a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </Panel>
+        </div>
+      ))}
+
+      <Btn kind="solid" full onClick={onClose}>
+        Sulge
       </Btn>
     </Sheet>
   );
@@ -5203,6 +5376,7 @@ function HouseholdGate({ onJoin }) {
   const [code, setCode] = useState("");
   const [checking, setChecking] = useState(false);
   const [existing, setExisting] = useState(null); // kood, mille kohta leiti juba andmeid
+  const [showGuide, setShowGuide] = useState(false);
   const ok = normCode(code).length >= 3;
 
   // Enne liitumist kontrollime (kui võimalik), kas see kood juba sisaldab
@@ -5321,6 +5495,25 @@ function HouseholdGate({ onJoin }) {
       <div style={{ fontSize: 12.5, color: T.faint, textAlign: "center", marginTop: 18, lineHeight: 1.5 }}>
         Koodi saab hiljem seadetes vahetada.
       </div>
+
+      <button
+        onClick={() => setShowGuide(true)}
+        style={{
+          border: "none",
+          background: "transparent",
+          color: T.gold,
+          fontFamily: FONT,
+          fontSize: 13.5,
+          fontWeight: 500,
+          cursor: "pointer",
+          marginTop: 14,
+          textAlign: "center",
+        }}
+      >
+        Loe enne alustamist kasutusjuhendit →
+      </button>
+
+      {showGuide && <GuideSheet onClose={() => setShowGuide(false)} />}
     </div>
   );
 }

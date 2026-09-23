@@ -3019,22 +3019,35 @@ ${xref}
     );
   }
   function GuideSheet({ onClose }) {
+    const [faq, setFaq] = useState(false);
     const steps = [
+      [
+        "Loo pere-kood",
+        "M\xF5tle koos pereliikmetega v\xE4lja \xFCks \xFChine kood ja sisestage see k\xF5igis telefonides. K\xF5ik, kes koodi teavad, n\xE4evad ja saavad muuta sama nimekirja \u2014 reaalajas, kontot pole selleks vaja."
+      ],
       [
         "Lisa ost",
         "Ava \u201ET\u0161ekk\u201C, pildista kassat\u0161ekk v\xF5i vali pilt galeriist. Read loetakse ise sisse ja saad need enne salvestamist \xFCle vaadata. Ilma pildita saab ka: \u201Esisesta ost k\xE4sitsi\u201C."
       ],
       [
-        "Vaata, mida on vaja osta",
-        "\u201ENimekiri\u201C toob ette selle, mis on otsas v\xF5i saab enne j\xE4rgmist poesk\xE4iku otsa. Riba t\xE4itub sedam\xF6\xF6da, kuidas p\xE4evi m\xF6\xF6dub."
+        "Nimekiri t\xE4ieneb iseenesest",
+        "\xC4pp \xF5pib ostuajaloost, kui tihti iga toode kodus otsa saab, ja t\xF5stab selle \u201ENimekirja\u201C, kui aeg on k\xE4es. Sa ei pea ise midagi kirja panema \u2014 mida rohkem t\u0161ekke lisad, seda t\xE4psem ennustus on."
       ],
       [
         "Paranda, kui \xE4pp eksib",
         "Puuduta toodet. Kui seda on veel kodus, vajuta \u201EOn veel\u201C \u2014 intervall pikeneb. Sealtsamast saab nime ja kategooriat muuta v\xF5i j\xE4lgimise l\xF5petada."
       ],
       [
-        "Retseptid ja kulud",
-        "\u201ERetseptid\u201C pakub roogi sellest, mis peaks kodus olema. \u201EKulud\u201C n\xE4itab, kuhu raha l\xE4heb. \u201ESeaded\u201C hoiab poep\xE4evi, pere suurust ja varukoopiat."
+        "Retseptid ja N\xE4dalaplaan",
+        "\u201ERetseptid\u201C pakub AI abiga roogi just sellest, mis kodus arvatavasti juba on. \u201EN\xE4dalaplaan\u201C aitab kogu n\xE4dala men\xFC\xFC ette planeerida \u2014 iga p\xE4eva jaoks kas m\xF5ni pakutud retsept v\xF5i ise kirjutatud toit. M\xF5lemad kuuluvad Pro paketi alla."
+      ],
+      [
+        "Kulud",
+        "\u201EKulud\u201C vaade n\xE4itab, kuhu raha kuu l\xF5ikes l\xE4heb ja milliste kategooriate peale k\xF5ige rohkem kulub."
+      ],
+      [
+        "Minu konto",
+        "Inimese-kujuline nupp \xFClal p\xE4ises avab ISIKLIKU konto (erineb pere-koodist). Sisse logides saad seadistada, millest ja millal \xE4pp teavitab, ning n\xE4ha, kas kasutad Tasuta v\xF5i Pro paketti."
       ]
     ];
     return /* @__PURE__ */ React.createElement(Sheet, { onClose, z: 80 }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14, marginBottom: 18 } }, /* @__PURE__ */ React.createElement(Wordmark, { height: 40 }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, letterSpacing: "-0.015em" } }, "Kuidas kasutada"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, marginTop: 2 } }, "Ostunimekiri, mis \xF5pib sinu r\xFCtmi"))), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, steps.map(([title, body], i) => /* @__PURE__ */ React.createElement(
@@ -3069,7 +3082,136 @@ ${xref}
         i + 1
       ),
       /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15.5, marginBottom: 4 } }, title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: T.soft, lineHeight: 1.55 } }, body))
-    ))), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement(Label, null, "Lisa telefoni avaekraanile"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: T.soft, lineHeight: 1.6 } }, /* @__PURE__ */ React.createElement("strong", { style: { color: T.ink } }, "iPhone:"), " ava link Safaris, vajuta jagamisnuppu ja vali \u201ELisa avakuvale\u201C.", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("strong", { style: { color: T.ink } }, "Android:"), " ava link Chrome'is, ava men\xFC\xFC ja vali \u201EInstalli\u201C v\xF5i \u201ELisa avakuvale\u201C.")), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onClose }, "Sain aru"));
+    ))), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement(Label, null, "Lisa telefoni avaekraanile"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: T.soft, lineHeight: 1.6 } }, /* @__PURE__ */ React.createElement("strong", { style: { color: T.ink } }, "iPhone:"), " ava link Safaris, vajuta jagamisnuppu ja vali \u201ELisa avakuvale\u201C.", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("strong", { style: { color: T.ink } }, "Android:"), " ava link Chrome'is, ava men\xFC\xFC ja vali \u201EInstalli\u201C v\xF5i \u201ELisa avakuvale\u201C.")), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => setFaq(true),
+        style: {
+          border: "none",
+          background: "transparent",
+          color: T.gold,
+          fontFamily: FONT,
+          fontSize: 14,
+          fontWeight: 500,
+          cursor: "pointer",
+          width: "100%",
+          textAlign: "center",
+          padding: "10px 0",
+          marginBottom: 4
+        }
+      },
+      "Korduma kippuvad k\xFCsimused (KKK)"
+    ), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onClose }, "Sain aru"), faq && /* @__PURE__ */ React.createElement(FaqSheet, { onClose: () => setFaq(false) }));
+  }
+  function FaqSheet({ onClose }) {
+    const [open, setOpen] = useState(0);
+    const groups = [
+      {
+        label: "Nimekiri ja ennustus",
+        items: [
+          [
+            "Kuidas \xE4pp teab, mis on kodus otsas?",
+            "\xC4pp vaatab sinu ostuajalugu: kui tihti oled mingit toodet varem ostnud, arvutab keskmise \u201Ekestvuse\u201C ja n\xE4itab tootel riba, mis t\xE4itub selle aja jooksul. Kui riba j\xF5uab l\xF5puni, l\xE4heb toode \u201Eotsas\u201C olekusse ja t\xF5useb Nimekirja. Mida rohkem t\u0161ekke lisad, seda t\xE4psem ennustus on."
+          ],
+          [
+            "Miks \xE4pp arvab, et miski on otsas, kuigi seda on veel kodus?",
+            "Puuduta toodet ja vajuta \u201EOn veel\u201C \u2014 see l\xFCkkab t\xE4htaega edasi ja \xE4pp \xF5pib, et see toode kestab tegelikult kauem kui seni arvatud."
+          ],
+          [
+            "Kas kaks inimest saavad korraga nimekirja muuta?",
+            "Jah. K\xF5ik samas pere-koodis muudatused j\xF5uavad k\xF5igi telefonidesse reaalajas kohale, kui interneti\xFChendus on olemas."
+          ]
+        ]
+      },
+      {
+        label: "T\u0161ekid",
+        items: [
+          [
+            "Kas t\u0161eki fotolt lugemine on t\xE4pne?",
+            "T\u0161eki pilti loeb AI ja pakub read koos hindadega automaatselt valmis, aga need saab alati enne salvestamist \xFCle vaadata ja k\xE4sitsi parandada."
+          ],
+          [
+            "Kas t\u0161ekki saab lisada ka ilma pildita?",
+            "Jah, \u201ET\u0161ekk\u201C vaates on ka \u201Esisesta ost k\xE4sitsi\u201C v\xF5imalus."
+          ]
+        ]
+      },
+      {
+        label: "Retseptid, N\xE4dalaplaan ja Pro pakett",
+        items: [
+          [
+            "Mis vahe on Retseptidel ja N\xE4dalaplaanil?",
+            "\u201ERetseptid\u201C pakub kohe AI roogi sellest, mida kodus arvatavasti on. \u201EN\xE4dalaplaan\u201C aitab kogu n\xE4dala peale ette m\xF5elda \u2014 iga p\xE4eva jaoks saab valida kas m\xF5ne pakutud retsepti v\xF5i kirjutada ise, mida s\xFC\xFCa."
+          ],
+          [
+            "Kas Pro pakett maksab praegu p\xE4riselt raha?",
+            "Ei, hetkel on Pro \u201Etestre\u017Eiimis\u201C \u2014 saab tasuta proovida. P\xE4ris makseid pole veel sisse ehitatud."
+          ]
+        ]
+      },
+      {
+        label: "Minu konto ja teavitused",
+        items: [
+          [
+            "Kas pere-kood ja Minu konto on sama asi?",
+            "Ei. Pere-kood on jagatud ostunimekiri (mitu inimest sama koodiga n\xE4evad sama nimekirja, kontot pole vaja). Minu konto on isiklik (e-post + parool) \u2014 iga inimene saab enda oma teha ja sealt seadistada teavitusi ning n\xE4ha oma paketti."
+          ],
+          [
+            "Kas teavitused tulevad ka siis, kui \xE4pp on suletud?",
+            "Praegu mitte t\xE4ielikult \u2014 teavitused t\xF6\xF6tavad k\xF5ige paremini, kui \xE4pp on hiljuti avatud olnud. P\xE4ris taustateavitused on \xFCks v\xF5imalik tulevane t\xE4iendus."
+          ]
+        ]
+      },
+      {
+        label: "Andmed ja turvalisus",
+        items: [
+          [
+            "Kuhu minu andmed salvestuvad ja kas need on turvalised?",
+            "Pere andmed (nimekiri, t\u0161ekid) salvestuvad pilve teie pere-koodi taha. Isiklikud kontoandmed (e-post, teavituste eelistused, pakett) on omaette kohas, mida n\xE4eb ainult see, kes on selle kontoga sisse loginud."
+          ],
+          [
+            "Mis juhtub, kui unustan pere-koodi?",
+            "Kood on lihtsalt vabalt valitud tekst, mida keegi teine ei tea ilma sinu \xFCtlemata. Kui unustad selle, k\xFCsi m\xF5nelt pereliikmelt, kes juba nimekirja kasutab."
+          ],
+          [
+            "Kas oma andmetest saab varukoopia teha?",
+            "Jah \u2014 Seadete alt leiad \u201EVarunda faili\u201C (laeb k\xF5ik andmed \xFChte faili) ja \u201ETaasta failist\u201C, kui peaks vaja minema."
+          ]
+        ]
+      }
+    ];
+    let flatIndex = -1;
+    return /* @__PURE__ */ React.createElement(Sheet, { onClose, z: 90 }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, letterSpacing: "-0.015em", marginBottom: 4 } }, "Korduma kippuvad k\xFCsimused"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, marginBottom: 18 } }, "Puuduta k\xFCsimust, et vastus avada"), groups.map((g) => /* @__PURE__ */ React.createElement("div", { key: g.label, style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement(Label, null, g.label), /* @__PURE__ */ React.createElement(Panel, null, g.items.map(([q, a], i) => {
+      flatIndex++;
+      const idx = flatIndex;
+      const isOpen = open === idx;
+      return /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          key: q,
+          style: {
+            padding: "12px 0",
+            borderTop: i === 0 ? "none" : `1px solid ${T.hair}`
+          }
+        },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          {
+            onClick: () => setOpen(isOpen ? -1 : idx),
+            style: {
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 10,
+              cursor: "pointer"
+            }
+          },
+          /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14.5, fontWeight: 500 } }, q),
+          /* @__PURE__ */ React.createElement("span", { style: { color: T.faint, fontSize: 16, flexShrink: 0 } }, isOpen ? "\u2212" : "+")
+        ),
+        isOpen && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: T.soft, lineHeight: 1.55, marginTop: 8 } }, a)
+      );
+    })))), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onClose }, "Sulge"));
   }
   function RecipesView({ data, save, products, plan, onOpenAccount }) {
     const [busy, setBusy] = useState(false);
@@ -4130,6 +4272,7 @@ ${xref}
     const [code, setCode] = useState("");
     const [checking, setChecking] = useState(false);
     const [existing, setExisting] = useState(null);
+    const [showGuide, setShowGuide] = useState(false);
     const ok = normCode(code).length >= 3;
     const checkAndJoin = async (c) => {
       if (!HAS_FIREBASE) {
@@ -4217,7 +4360,26 @@ ${xref}
         },
         checking ? "Kontrollin\u2026" : "Ava nimekiri"
       )),
-      /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: T.faint, textAlign: "center", marginTop: 18, lineHeight: 1.5 } }, "Koodi saab hiljem seadetes vahetada.")
+      /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: T.faint, textAlign: "center", marginTop: 18, lineHeight: 1.5 } }, "Koodi saab hiljem seadetes vahetada."),
+      /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          onClick: () => setShowGuide(true),
+          style: {
+            border: "none",
+            background: "transparent",
+            color: T.gold,
+            fontFamily: FONT,
+            fontSize: 13.5,
+            fontWeight: 500,
+            cursor: "pointer",
+            marginTop: 14,
+            textAlign: "center"
+          }
+        },
+        "Loe enne alustamist kasutusjuhendit \u2192"
+      ),
+      showGuide && /* @__PURE__ */ React.createElement(GuideSheet, { onClose: () => setShowGuide(false) })
     );
   }
   function CenteredNote({ title, children }) {

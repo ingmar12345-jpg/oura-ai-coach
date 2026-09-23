@@ -199,6 +199,29 @@ Playwright testid (probe-accounts, probe-collision, probe-mealplan,
 probe-fixes, probe-progressbar, probe-qty) jooksid pärast parandust uuesti
 läbi, 0 konsooli viga.
 
+Hiljem samal päeval: "Loo konto" andis üldise vea, sest Firebase konsoolis
+polnud Email/Password sisselogimist lubatud (auth/operation-not-allowed).
+Koodis lisati selle vea jaoks konkreetne selgitav teade ning tundmatute
+vigade puhul kuvatakse nüüd veakood sulgudes (CACHE -> needmore-v8).
+
+## 23.09.2026 lisandus: uuendatud Juhend + uus KKK
+
+Juhend (GuideSheet) uuendati, et kajastada kõiki praeguseid funktsioone
+(varem kirjutatud enne konto/Pro/Nädalaplaani lisamist): 1. Loo pere-kood,
+2. Lisa ost, 3. Nimekiri täieneb iseenesest (selgitab ennustuse loogikat),
+4. Paranda kui äpp eksib, 5. Retseptid ja Nädalaplaan (Pro), 6. Kulud,
+7. Minu konto (teavitused + pakett).
+
+Uus KKK (`FaqSheet`, app_head.jsx GuideSheet'i järel) avaneb Juhendi lõpust
+nupuga "Korduma kippuvad küsimused (KKK)": 5 kategooriat (Nimekiri ja
+ennustus / Tšekid / Retseptid, Nädalaplaan ja Pro / Minu konto ja
+teavitused / Andmed ja turvalisus), iga küsimus avaneb klõpsuga.
+
+Pere-koodi algekraanile (HouseholdGate, enne liitumist) lisati link
+"Loe enne alustamist kasutusjuhendit →", mis avab sama Juhendi.
+
+Testitud: probe-guide-faq.js — 0 konsooli viga. CACHE -> `needmore-v9`.
+
 ## Kuidas jätkata
 
 Kaasas olevad failid (zip'is):
@@ -223,3 +246,21 @@ Kui teed muudatusi lähtekoodis, pea meeles järjekorda:
 Kasutaja pole IT-taustaga, eelistab valmis lahendusi ja täpseid
 samm-sammult juhiseid koos ekraanipiltidega (tema jagab ekraanipilte,
 sina ütled täpselt kuhu vajutada).
+
+## 23.09.2026 lisandus (Claude Code, GitHub repo)
+
+Kood elab nüüd GitHubis: ingmar12345-jpg/oura-ai-coach, haru
+`claude/relaxed-maxwell-72m8fv` (kaustad `app/` ja `source/`).
+Sinna ühendati 23.09 Juhendi/KKK uuendus koos järgmiste muudatustega:
+
+- `useAccount.signUp`: pärast konto loomist kutsutakse
+  `cred.user.sendEmailVerification()` — Firebase saadab kinnituskirja.
+- "Minu konto" paneel näitab teadet "Saatsime sulle kinnituskirja…",
+  kuni `authUser.emailVerified` on false.
+- `friendlyAuthError`: tundmatu vea korral kuvatakse sulgudes `e.code`
+  või `e.message`; signIn/signUp vead logitakse `console.error`-iga.
+- CACHE -> `needmore-v10`.
+
+Firebase: Authentication -> Email/Password on nüüd lubatud.
+Domeen: needmore.eu (Zone.ee, DNS: A 75.2.60.5, CNAME www ->
+needmore-pere.netlify.app), lisatud Netlify saidile needmore-pere.
