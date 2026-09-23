@@ -1058,6 +1058,19 @@ ${xref}
   function Label({ children, style }) {
     return /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, marginBottom: 12, ...style } }, children);
   }
+  function Mascot({ mood, size = 88, style }) {
+    return /* @__PURE__ */ React.createElement(
+      "img",
+      {
+        src: mood === "hungry" ? "img/tegelane-hungry.png" : "img/tegelane-full.png",
+        alt: "",
+        width: size,
+        height: size,
+        className: mood === "hungry" ? "nm-pat" : "nm-hop",
+        style: { display: "block", flexShrink: 0, ...style }
+      }
+    );
+  }
   function Empty({ title, hint }) {
     return /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "72px 30px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, color: T.ink, marginBottom: 8 } }, title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14.5, color: T.faint, lineHeight: 1.55 } }, hint));
   }
@@ -1284,6 +1297,8 @@ ${xref}
     const byCategory = !!data.settings?.store;
     const order = byCategory ? CATEGORY_ORDER : null;
     const needed = products.filter((p) => !p.hidden && p.progress >= 0.7);
+    const outCount = needed.filter((p) => p.progress >= 1).length;
+    const soonCount = needed.length - outCount;
     const watching = products.filter(
       (p) => !p.hidden && p.progress >= 0.35 && p.progress < 0.7
     );
@@ -1533,7 +1548,14 @@ ${xref}
         }
       },
       "Peida"
-    )), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: T.faint, marginBottom: 6, letterSpacing: ".02em" } }, "J\xE4rjesta nimekiri"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" } }, [
+    )), outCount > 0 && /* @__PURE__ */ React.createElement(
+      Panel,
+      {
+        style: { display: "flex", alignItems: "center", gap: 14, padding: "12px 16px 12px 10px", marginBottom: 14 }
+      },
+      /* @__PURE__ */ React.createElement(Mascot, { mood: "hungry", size: 76 }),
+      /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 600, color: T.ink } }, outCount === 1 ? "1 toode on otsas" : `${outCount} toodet on otsas`), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, marginTop: 3, lineHeight: 1.45 } }, soonCount > 0 ? `K\xF5ht juba koriseb. Veel ${soonCount} ${soonCount === 1 ? "toode saab" : "toodet saab"} varsti otsa.` : "K\xF5ht juba koriseb, aeg poodi minna."))
+    ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: T.faint, marginBottom: 6, letterSpacing: ".02em" } }, "J\xE4rjesta nimekiri"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" } }, [
       ["", "Kiireloomulisuse j\xE4rgi"],
       ["category", "Kategooriate j\xE4rgi"]
     ].map(([id, label]) => /* @__PURE__ */ React.createElement(
@@ -1643,13 +1665,13 @@ ${xref}
         title: "Nimekiri on t\xFChi",
         hint: "\xC4pp vajab teadmist, mida te tavaliselt ostate. Vali kiiresti tuttavad tooted v\xF5i lisa esimene t\u0161ekk."
       }
-    ), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: () => setQuickStart(true) }, "Vali tavalised tooted")), products.length > 0 && needed.length === 0 && /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: () => setQuickStart(true) }, "Vali tavalised tooted")), products.length > 0 && needed.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { paddingTop: 24 } }, /* @__PURE__ */ React.createElement(Mascot, { mood: "full", size: 120, style: { margin: "0 auto" } }), /* @__PURE__ */ React.createElement("div", { style: { marginTop: -56 } }, /* @__PURE__ */ React.createElement(
       Empty,
       {
         title: "K\xF5ik on praegu olemas",
         hint: "Midagi ei ole veel otsakorral. Nimekiri t\xE4ieneb iseenesest, kui midagi hakkab otsa saama."
       }
-    ), groups.map(([cat, items]) => /* @__PURE__ */ React.createElement("div", { key: cat || "all", style: { marginBottom: cat ? 14 : 0 } }, cat && /* @__PURE__ */ React.createElement(
+    ))), groups.map(([cat, items]) => /* @__PURE__ */ React.createElement("div", { key: cat || "all", style: { marginBottom: cat ? 14 : 0 } }, cat && /* @__PURE__ */ React.createElement(
       "div",
       {
         style: {
@@ -4950,6 +4972,23 @@ ${xref}
         @keyframes slideup { from { transform: translateY(22px); } to { transform: none; } }
         @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
         @keyframes pulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+        @keyframes nm-pat {
+          0%, 100% { transform: none; }
+          14% { transform: translateY(2px) scale(1.03, .97); }
+          28% { transform: none; }
+          42% { transform: translateY(2px) scale(1.03, .97) rotate(-2deg); }
+          58% { transform: rotate(1.5deg); }
+          74% { transform: none; }
+        }
+        @keyframes nm-hop {
+          0%, 100% { transform: none; }
+          25% { transform: translateY(-7px); }
+          45% { transform: scale(1.04, .96); }
+          62% { transform: translateY(-3px); }
+          80% { transform: none; }
+        }
+        .nm-pat { animation: nm-pat 1.4s ease-in-out .25s 1 both; transform-origin: 50% 92%; }
+        .nm-hop { animation: nm-hop 1.2s ease-out .25s 1 both; transform-origin: 50% 100%; }
         button { transition: transform .18s ease, opacity .18s ease; }
         button:hover { transform: translateY(-1px); }
         @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

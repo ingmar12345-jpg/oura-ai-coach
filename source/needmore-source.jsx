@@ -1232,6 +1232,20 @@ function Label({ children, style }) {
   );
 }
 
+// NeedMore tegelane: näljane, kui midagi on otsas, rahulolev, kui kõik on olemas
+function Mascot({ mood, size = 88, style }) {
+  return (
+    <img
+      src={mood === "hungry" ? "img/tegelane-hungry.png" : "img/tegelane-full.png"}
+      alt=""
+      width={size}
+      height={size}
+      className={mood === "hungry" ? "nm-pat" : "nm-hop"}
+      style={{ display: "block", flexShrink: 0, ...style }}
+    />
+  );
+}
+
 function Empty({ title, hint }) {
   return (
     <div style={{ textAlign: "center", padding: "72px 30px" }}>
@@ -1465,6 +1479,8 @@ function ListView({ products, data, save, onOpen }) {
   const order = byCategory ? CATEGORY_ORDER : null;
 
   const needed = products.filter((p) => !p.hidden && p.progress >= 0.7);
+  const outCount = needed.filter((p) => p.progress >= 1).length;
+  const soonCount = needed.length - outCount;
   const watching = products.filter(
     (p) => !p.hidden && p.progress >= 0.35 && p.progress < 0.7
   );
@@ -1780,6 +1796,24 @@ function ListView({ products, data, save, onOpen }) {
         </Panel>
       )}
 
+      {outCount > 0 && (
+        <Panel
+          style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px 12px 10px", marginBottom: 14 }}
+        >
+          <Mascot mood="hungry" size={76} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: T.ink }}>
+              {outCount === 1 ? "1 toode on otsas" : `${outCount} toodet on otsas`}
+            </div>
+            <div style={{ fontSize: 13, color: T.faint, marginTop: 3, lineHeight: 1.45 }}>
+              {soonCount > 0
+                ? `Kõht juba koriseb. Veel ${soonCount} ${soonCount === 1 ? "toode saab" : "toodet saab"} varsti otsa.`
+                : "Kõht juba koriseb, aeg poodi minna."}
+            </div>
+          </div>
+        </Panel>
+      )}
+
       <div style={{ fontSize: 11.5, color: T.faint, marginBottom: 6, letterSpacing: ".02em" }}>
         Järjesta nimekiri
       </div>
@@ -1912,10 +1946,15 @@ function ListView({ products, data, save, onOpen }) {
       )}
 
       {products.length > 0 && needed.length === 0 && (
-        <Empty
-          title="Kõik on praegu olemas"
-          hint="Midagi ei ole veel otsakorral. Nimekiri täieneb iseenesest, kui midagi hakkab otsa saama."
-        />
+        <div style={{ paddingTop: 24 }}>
+          <Mascot mood="full" size={120} style={{ margin: "0 auto" }} />
+          <div style={{ marginTop: -56 }}>
+            <Empty
+              title="Kõik on praegu olemas"
+              hint="Midagi ei ole veel otsakorral. Nimekiri täieneb iseenesest, kui midagi hakkab otsa saama."
+            />
+          </div>
+        </div>
       )}
 
       {groups.map(([cat, items]) => (
@@ -6364,6 +6403,23 @@ export default function App() {
         @keyframes slideup { from { transform: translateY(22px); } to { transform: none; } }
         @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
         @keyframes pulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+        @keyframes nm-pat {
+          0%, 100% { transform: none; }
+          14% { transform: translateY(2px) scale(1.03, .97); }
+          28% { transform: none; }
+          42% { transform: translateY(2px) scale(1.03, .97) rotate(-2deg); }
+          58% { transform: rotate(1.5deg); }
+          74% { transform: none; }
+        }
+        @keyframes nm-hop {
+          0%, 100% { transform: none; }
+          25% { transform: translateY(-7px); }
+          45% { transform: scale(1.04, .96); }
+          62% { transform: translateY(-3px); }
+          80% { transform: none; }
+        }
+        .nm-pat { animation: nm-pat 1.4s ease-in-out .25s 1 both; transform-origin: 50% 92%; }
+        .nm-hop { animation: nm-hop 1.2s ease-out .25s 1 both; transform-origin: 50% 100%; }
         button { transition: transform .18s ease, opacity .18s ease; }
         button:hover { transform: translateY(-1px); }
         @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

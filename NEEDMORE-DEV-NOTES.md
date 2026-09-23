@@ -347,3 +347,15 @@ Iga nimekirja rea all on kogus (+/-), mitte ainult korvis olles.
   uuendatakse ainult kogust.
 - Käsitsi lisatud read on kahel real (nimi + × ülal, kogus + Korvi all).
 - KKK: "Kust poodi mineja teab, kui palju osta?". CACHE -> `needmore-v17`.
+
+## 23.09.2026: NeedMore tegelane
+
+Kasutaja joonistatud tegelane (ChatGPT-s tehtud PNG-d) on `app/img/`:
+`tegelane-hungry.png` (punane särk, näljane) ja `tegelane-full.png` (roheline,
+rahulolev). Vähendatud 256×256 läbipaistvaks PNG-ks (~7 KB).
+- `Mascot` komponent. Nimekirjas on kaart "N toodet on otsas" näljase
+  tegelasega, kui vähemalt üks toode on "otsas". "Kõik on praegu olemas"
+  tühjas olekus on rahulolev tegelane.
+- Animatsioon mängib üks kord (`nm-pat` kõhu patsutus, `nm-hop` hüpe);
+  `prefers-reduced-motion` lülitab selle välja (globaalne reegel App'i stiilis).
+- Pildid on sw.js ASSETS-is. CACHE -> `needmore-v18`.
