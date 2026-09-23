@@ -332,3 +332,18 @@ näidatakse nende all Pro lukku).
   Nimekirjas kuvatakse nt "250 g · Hakklihakaste".
 - Oma retsepte saab valida ka Nädalaplaani (Pro).
 - Juhendi ja KKK retseptide tekstid uuendatud. CACHE -> `needmore-v16`.
+
+## 23.09.2026: kogused ostunimekirjas
+
+Iga nimekirja rea all on kogus (+/-), mitte ainult korvis olles.
+- `buildProducts`: ostudel on nüüd `unit`; tootel `usual` = viimase kuni 5 ostu
+  koguse mediaan: `{count, unit}` tükikaubal (tk/pakk), `{amount}` kaalukaubal
+  (kaalukaubal näidatakse "tavaliselt ~1,2 kg" ilma +/- nuputa).
+- `data.want = {tootevõti: n}` on pere ühine soovitud kogus (meta/state, nähtav
+  kõigil). Vaikimisi `usual.count`. Korvi pannes `cart[k] = want`. Tühjendatakse
+  ostureisi lõpetamisel, tšeki salvestamisel ja "On veel" vajutusel.
+- "Lisa" kast loeb koguse (`parseListInput`): "Kodujuust 3", "3x kodujuust",
+  "Hakkliha 500 g". Kui toode on juba nimekirjas (ülal või käsitsi lisatud),
+  uuendatakse ainult kogust.
+- Käsitsi lisatud read on kahel real (nimi + × ülal, kogus + Korvi all).
+- KKK: "Kust poodi mineja teab, kui palju osta?". CACHE -> `needmore-v17`.

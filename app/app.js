@@ -52,7 +52,8 @@
     cart: {},
     settings: { mode: "daily", days: [], household: 2, store: "" },
     mealPlan: {},
-    myRecipes: []
+    myRecipes: [],
+    want: {}
   };
   const CATEGORY_ORDER = [
     "Puu- ja k\xF6\xF6givili",
@@ -167,17 +168,29 @@
     return out;
   };
   const scaleAmount = (item, factor) => parseQty(item.qty) > 0 ? { qty: roundQty(parseQty(item.qty) * factor, item.unit), unit: item.unit } : null;
+  const parseListInput = (t) => {
+    const U = "(tk|pakk|kg|g|l|ml)";
+    let m = t.match(new RegExp(`^(.+?)[\\s,]+(\\d+(?:[.,]\\d+)?)\\s*${U}?\\.?$`, "i"));
+    let name, n, unit;
+    if (m) [, name, n, unit] = m;
+    else if (m = t.match(new RegExp(`^(\\d+(?:[.,]\\d+)?)\\s*(?:x|\xD7)?\\s*${U}?\\s+(.+)$`, "i")))
+      [, n, unit, name] = m;
+    const qty = parseQty(n);
+    if (!m || !qty || !name.trim()) return { name: t };
+    unit = (unit || "tk").toLowerCase();
+    return unit === "tk" || unit === "pakk" ? { name: name.trim(), count: Math.max(1, Math.round(qty)) } : { name: name.trim(), amount: { qty, unit } };
+  };
   const relDays = (n) => n === 0 ? "t\xE4na" : n === 1 ? "eile" : `${n} p\xE4eva tagasi`;
   function buildProducts(data) {
     const map = /* @__PURE__ */ new Map();
-    const push = (name, category, date, qty, unitPrice, total, store, manual, src) => {
+    const push = (name, category, date, qty, unitPrice, total, store, manual, src, unit) => {
       const k = key(name);
       if (!k) return;
       if (!map.has(k))
         map.set(k, { k, name: name.trim(), category: category || "Muu", purchases: [] });
       const p = map.get(k);
       if (category && category !== "Muu") p.category = category;
-      p.purchases.push({ date, qty: qty || 1, unitPrice, total, store, manual, src });
+      p.purchases.push({ date, qty: qty || 1, unit: unit || "tk", unitPrice, total, store, manual, src });
     };
     data.receipts.forEach(
       (r) => r.lines.forEach(
@@ -185,7 +198,7 @@
           type: "receipt",
           rid: r.id,
           idx
-        })
+        }, l.unit)
       )
     );
     data.manualPurchases.forEach(
@@ -222,12 +235,19 @@
       const daysSince = Math.max(daysBetween(from, now), 0);
       const daysSincePurchase = Math.max(daysBetween(last.date, now), 0);
       const bag = p.k === BAG_KEY;
+      const recent = p.purchases.slice(-5);
+      const qs = recent.map((x) => x.qty || 1).sort((a, b) => a - b);
+      const medQty = qs.length % 2 ? qs[(qs.length - 1) / 2] : (qs[qs.length / 2 - 1] + qs[qs.length / 2]) / 2;
+      const lastUnit = recent[recent.length - 1].unit || "tk";
+      const countable = lastUnit === "tk" || lastUnit === "pakk";
+      const usual = countable ? { count: Math.max(1, Math.round(medQty)), unit: lastUnit } : { amount: { qty: Math.round(medQty * 100) / 100, unit: lastUnit } };
       const progress = bag ? 0 : est > 0 ? (daysSince + lookahead) / est : 0;
       const status = progress >= 1 ? "otsas" : progress >= 0.7 ? "varsti" : "olemas";
       const priced = p.purchases.filter((x) => x.unitPrice > 0);
       return {
         ...p,
         bag,
+        usual,
         units: p.purchases.reduce((a, b) => a + (b.qty || 0), 0),
         est,
         progress,
@@ -1182,7 +1202,7 @@ ${xref}
       ), children)
     );
   }
-  function QtyStepper({ value, onChange, min = 1, max = 99 }) {
+  function QtyStepper({ value, onChange, min = 1, max = 99, suffix }) {
     const btnStyle = {
       width: 34,
       height: 34,
@@ -1230,10 +1250,13 @@ ${xref}
             textAlign: "center",
             fontSize: 13,
             fontWeight: 600,
-            fontVariantNumeric: "tabular-nums"
+            fontVariantNumeric: "tabular-nums",
+            whiteSpace: "nowrap",
+            padding: suffix ? "0 3px" : 0
           }
         },
-        value
+        value,
+        suffix ? ` ${suffix}` : ""
       ),
       /* @__PURE__ */ React.createElement(
         "button",
@@ -1254,6 +1277,10 @@ ${xref}
     const [noticeTone, setNoticeTone] = useState(T.soon);
     const [quickStart, setQuickStart] = useState(false);
     const cart = data.cart || {};
+    const want = data.want || {};
+    const wantOf = (k) => want[k] || products.find((x) => x.k === k)?.usual?.count || 1;
+    const setWant = (k, n) => save({ ...data, want: { ...want, [k]: Math.max(1, Math.round(n)) } });
+    const without = (obj, k) => Object.fromEntries(Object.entries(obj || {}).filter(([x]) => x !== k));
     const byCategory = !!data.settings?.store;
     const order = byCategory ? CATEGORY_ORDER : null;
     const needed = products.filter((p) => !p.hidden && p.progress >= 0.7);
@@ -1264,14 +1291,14 @@ ${xref}
     const toggleCart = (k) => {
       const next = { ...cart };
       if (next[k]) delete next[k];
-      else next[k] = 1;
+      else next[k] = wantOf(k);
       save({ ...data, cart: next });
     };
     const setCartQty = (k, qty) => {
       if (!cart[k]) return;
       save({ ...data, cart: { ...cart, [k]: Math.max(1, Math.round(qty)) } });
     };
-    const stillHave = (p) => save({ ...data, stillHave: { ...data.stillHave, [p.k]: today() } });
+    const stillHave = (p) => save({ ...data, stillHave: { ...data.stillHave, [p.k]: today() }, want: without(want, p.k) });
     const finishTrip = () => {
       const bought = Object.keys(cart).map((k) => {
         const known = products.find((p) => p.k === k);
@@ -1320,31 +1347,51 @@ ${xref}
         // ikkagi ostetakse, hakkab äpp seda automaatselt taas jälgima — muidu jääks
         // see igaveseks vaikimisi peidetuks, kuni keegi mäletab seda käsitsi tagasi lülitada.
         hidden: Object.fromEntries(Object.entries(data.hidden).filter(([k]) => !cart[k])),
+        want: Object.fromEntries(Object.entries(want).filter(([k]) => !cart[k])),
         cart: {}
       });
       setNoticeTone(T.fresh);
       setNotice(`Ostureis l\xF5petatud \u2014 ${bought.length} ${bought.length === 1 ? "toode" : "toodet"} kirja pandud.`);
     };
     const addExtra = (name) => {
-      const t = (name ?? newItem).trim();
-      if (!t) return;
+      const raw = (name ?? newItem).trim();
+      if (!raw) return;
+      const { name: t, count, amount } = name != null ? { name: raw } : parseListInput(raw);
       const k = key(t);
-      if (data.extras.some((e) => key(e.name) === k)) {
-        setNoticeTone(T.soon);
-        setNotice(`${t} on juba nimekirjas`);
+      const qtyText = count ? `${count} tk` : amount ? fmtAmount(amount) : "";
+      const done = (msg, tone) => {
+        setNoticeTone(tone);
+        setNotice(msg);
         setNewItem("");
-        return;
+        setFocused(false);
+      };
+      const existing = data.extras.find((e) => key(e.name) === k);
+      if (existing) {
+        if (count) setWant(k, count);
+        else if (amount)
+          save({
+            ...data,
+            extras: data.extras.map((e) => e.id === existing.id ? { ...e, amounts: [toBase(amount)] } : e)
+          });
+        return done(
+          qtyText ? `${existing.name}: kogus muudetud, ${qtyText}` : `${t} on juba nimekirjas`,
+          qtyText ? T.fresh : T.soon
+        );
       }
       const already = needed.find((x) => x.k === k);
       if (already) {
-        setNoticeTone(T.soon);
-        setNotice(`${already.name} on nimekirjas juba \xFClal`);
-        setNewItem("");
-        setFocused(false);
-        return;
+        if (count) setWant(k, count);
+        return done(
+          count ? `${already.name} on nimekirjas \xFClal, kogus ${qtyText}` : `${already.name} on nimekirjas juba \xFClal`,
+          count ? T.fresh : T.soon
+        );
       }
       const known = products.find((x) => x.k === k && !x.hidden);
-      save({ ...data, extras: [...data.extras, { id: uid(), name: t }] });
+      save({
+        ...data,
+        extras: [...data.extras, { id: uid(), name: t, ...amount ? { amounts: [toBase(amount)] } : {} }],
+        want: count ? { ...want, [k]: count } : want
+      });
       if (known && !known.bag) {
         setNoticeTone(progressColor(known.progress));
         setNotice(
@@ -1376,29 +1423,35 @@ ${xref}
             display: "flex",
             gap: 6,
             marginTop: 9,
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
             alignItems: "center"
           }
         },
-        !inCart && /* @__PURE__ */ React.createElement(
+        p.usual?.count ? /* @__PURE__ */ React.createElement(
+          QtyStepper,
+          {
+            value: inCart ? cart[p.k] || 1 : wantOf(p.k),
+            suffix: p.usual.unit,
+            onChange: (n) => inCart ? setCartQty(p.k, n) : setWant(p.k, n)
+          }
+        ) : /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13, color: T.soft, paddingLeft: 4, ...num } }, "tavaliselt ~", fmtAmount(p.usual.amount)),
+        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, !inCart && /* @__PURE__ */ React.createElement(
           Btn,
           {
             kind: "quiet",
-            style: { padding: "10px 15px", fontSize: 13, minHeight: 40 },
+            style: { padding: "10px 14px", fontSize: 13, minHeight: 40 },
             onClick: () => stillHave(p)
           },
           "On veel"
-        ),
-        inCart && /* @__PURE__ */ React.createElement(QtyStepper, { value: cart[p.k] || 1, onChange: (n) => setCartQty(p.k, n) }),
-        /* @__PURE__ */ React.createElement(
+        ), /* @__PURE__ */ React.createElement(
           Btn,
           {
             kind: inCart ? "quiet" : "solid",
-            style: { padding: "10px 17px", fontSize: 13, minHeight: 40 },
+            style: { padding: "10px 16px", fontSize: 13, minHeight: 40 },
             onClick: () => toggleCart(p.k)
           },
           inCart ? "V\xF5ta korvist" : "Korvi"
-        )
+        ))
       )));
     };
     return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px 16px" } }, nextShop(data.settings).days > 0 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, marginBottom: 12, lineHeight: 1.5 } }, "Arvestan j\xE4rgmise poesk\xE4iguga ", nextShop(data.settings).label), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 10 } }, /* @__PURE__ */ React.createElement(
@@ -1408,7 +1461,7 @@ ${xref}
         onChange: (e) => setNewItem(e.target.value),
         onFocus: () => setFocused(true),
         onKeyDown: (e) => e.key === "Enter" && addExtra(),
-        placeholder: "Lisa midagi nimekirja",
+        placeholder: "Lisa nimekirja, nt Kodujuust 3",
         style: field({ flex: 1, background: T.surface })
       }
     ), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", onClick: () => addExtra() }, "Lisa")), notice && /* @__PURE__ */ React.createElement(
@@ -1492,29 +1545,29 @@ ${xref}
       },
       label
     ))), data.extras.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 22 } }, data.extras.map((e) => {
-      const inCart = !!cart[key(e.name)];
+      const k = key(e.name);
+      const inCart = !!cart[k];
+      const hasAmounts = e.amounts?.length > 0;
+      const sub = [hasAmounts ? fmtAmounts(e.amounts) : "", (e.from || []).join(", ")].filter(Boolean).join(" \xB7 ");
       return /* @__PURE__ */ React.createElement(
         "div",
         {
           key: e.id,
           style: {
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
             background: T.surface,
             borderRadius: 14,
-            padding: "12px 14px",
-            marginBottom: 7,
-            opacity: inCart ? 0.5 : 1
+            padding: "11px 13px 12px",
+            marginBottom: 6,
+            opacity: inCart ? 0.55 : 1
           }
         },
-        /* @__PURE__ */ React.createElement("span", { style: { display: "flex", alignItems: "center", gap: 12, minWidth: 0 } }, /* @__PURE__ */ React.createElement(
+        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12 } }, /* @__PURE__ */ React.createElement(
           "span",
           {
             style: {
-              width: 32,
-              height: 32,
-              borderRadius: 16,
+              width: 30,
+              height: 30,
+              borderRadius: 15,
               background: "#EEF2F7",
               color: T.faint,
               fontSize: 15,
@@ -1525,46 +1578,64 @@ ${xref}
             }
           },
           "+"
-        ), /* @__PURE__ */ React.createElement("span", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement(
-          "span",
+        ), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement(
+          "div",
           {
             style: {
-              display: "block",
               fontSize: 15.5,
+              letterSpacing: "-0.01em",
               textDecoration: inCart ? "line-through" : "none"
             }
           },
           e.name
-        ), (e.amounts?.length > 0 || e.from?.length > 0) && /* @__PURE__ */ React.createElement(
-          "span",
+        ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: T.faint, marginTop: 2, ...num } }, sub || "lisatud k\xE4sitsi")), /* @__PURE__ */ React.createElement(
+          "button",
           {
-            style: { display: "block", fontSize: 12.5, color: T.faint, marginTop: 2, ...num }
+            type: "button",
+            "aria-label": `Eemalda ${e.name}`,
+            onClick: () => save({ ...data, extras: data.extras.filter((x) => x.id !== e.id), want: without(want, k) }),
+            style: {
+              border: "none",
+              background: "transparent",
+              color: T.faint,
+              fontSize: 20,
+              lineHeight: 1,
+              cursor: "pointer",
+              padding: "4px 2px",
+              flexShrink: 0
+            }
           },
-          [fmtAmounts(e.amounts), (e.from || []).join(", ")].filter(Boolean).join(" \xB7 ")
-        ))),
-        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexShrink: 0, alignItems: "center" } }, inCart && /* @__PURE__ */ React.createElement(
-          QtyStepper,
+          "\xD7"
+        )),
+        /* @__PURE__ */ React.createElement(
+          "div",
           {
-            value: cart[key(e.name)] || 1,
-            onChange: (n) => setCartQty(key(e.name), n)
-          }
-        ), /* @__PURE__ */ React.createElement(
-          Btn,
-          {
-            kind: inCart ? "quiet" : "solid",
-            style: { padding: "11px 15px", fontSize: 13, minHeight: 40 },
-            onClick: () => toggleCart(key(e.name))
+            style: {
+              display: "flex",
+              gap: 6,
+              marginTop: 9,
+              justifyContent: hasAmounts ? "flex-end" : "space-between",
+              alignItems: "center"
+            }
           },
-          inCart ? "Korvis" : "Korvi"
-        ), /* @__PURE__ */ React.createElement(
-          Btn,
-          {
-            kind: "bare",
-            style: { padding: "11px 8px", fontSize: 13, minHeight: 40 },
-            onClick: () => save({ ...data, extras: data.extras.filter((x) => x.id !== e.id) })
-          },
-          "Eemalda"
-        ))
+          !hasAmounts && /* @__PURE__ */ React.createElement(
+            QtyStepper,
+            {
+              value: inCart ? cart[k] || 1 : wantOf(k),
+              suffix: products.find((x) => x.k === k)?.usual?.unit || "tk",
+              onChange: (n) => inCart ? setCartQty(k, n) : setWant(k, n)
+            }
+          ),
+          /* @__PURE__ */ React.createElement(
+            Btn,
+            {
+              kind: inCart ? "quiet" : "solid",
+              style: { padding: "10px 16px", fontSize: 13, minHeight: 40 },
+              onClick: () => toggleCart(k)
+            },
+            inCart ? "V\xF5ta korvist" : "Korvi"
+          )
+        )
       );
     })), products.length === 0 && data.extras.length === 0 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(
       Empty,
@@ -1896,9 +1967,11 @@ ${xref}
       const lines = merged;
       const cleared = { ...data.stillHave };
       const clearedCart = { ...data.cart };
+      const clearedWant = { ...data.want || {} };
       lines.forEach((l) => {
         delete cleared[key(l.name)];
         delete clearedCart[key(l.name)];
+        delete clearedWant[key(l.name)];
       });
       const names = new Set(lines.map((l) => key(l.name)));
       const WINDOW = 14;
@@ -1927,6 +2000,7 @@ ${xref}
           }
         ],
         stillHave: cleared,
+        want: clearedWant,
         // Ostetud toode, mille jälgimine oli peatatud, läheb automaatselt taas jälgimisele.
         hidden: Object.fromEntries(Object.entries(data.hidden).filter(([k]) => !names.has(k)))
       });
@@ -3154,6 +3228,10 @@ ${xref}
           [
             "Kuidas \xE4pp teab, mis on kodus otsas?",
             "\xC4pp vaatab sinu ostuajalugu: kui tihti oled mingit toodet varem ostnud, arvutab keskmise \u201Ekestvuse\u201C ja n\xE4itab tootel riba, mis t\xE4itub selle aja jooksul. Kui riba j\xF5uab l\xF5puni, l\xE4heb toode \u201Eotsas\u201C olekusse ja t\xF5useb Nimekirja. Mida rohkem t\u0161ekke lisad, seda t\xE4psem ennustus on."
+          ],
+          [
+            "Kust poodi mineja teab, kui palju osta?",
+            "Iga toote all nimekirjas on kogus, nt \u201E3 tk\u201C. \xC4pp paneb sinna automaatselt koguse, mida olete t\u0161ekkide j\xE4rgi tavaliselt korraga ostnud. Seda saab muuta +/- nuppudega v\xF5i kirjutades lisamise kasti nt \u201EKodujuust 5\u201C, \u201E3x jogurt\u201C v\xF5i \u201EHakkliha 500 g\u201C. Muudetud kogus on kohe n\xE4ha k\xF5igil pereliikmetel, kes kasutavad sama pere-koodi. Korvi pannes l\xE4heb kogus kaasa ja p\xE4rast ostu algab j\xE4rgmine kord j\xE4lle tavalisest kogusest."
           ],
           [
             "Mis on nimekirja all olev \u201EVeel kodus\u201C?",

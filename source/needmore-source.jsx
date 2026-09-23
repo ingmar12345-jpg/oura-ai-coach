@@ -65,6 +65,7 @@ const emptyData = {
   settings: { mode: "daily", days: [], household: 2, store: "" },
   mealPlan: {},
   myRecipes: [],
+  want: {},
 };
 
 // Kategooriate järjestus nimekirjas: tavaline poes kõndimise suund
@@ -170,6 +171,22 @@ const mergeAmounts = (list, add) => {
 const scaleAmount = (item, factor) =>
   parseQty(item.qty) > 0 ? { qty: roundQty(parseQty(item.qty) * factor, item.unit), unit: item.unit } : null;
 
+// Nimekirja sisestus koos kogusega: "Kodujuust 3", "3x kodujuust", "Hakkliha 500 g"
+const parseListInput = (t) => {
+  const U = "(tk|pakk|kg|g|l|ml)";
+  let m = t.match(new RegExp(`^(.+?)[\\s,]+(\\d+(?:[.,]\\d+)?)\\s*${U}?\\.?$`, "i"));
+  let name, n, unit;
+  if (m) [, name, n, unit] = m;
+  else if ((m = t.match(new RegExp(`^(\\d+(?:[.,]\\d+)?)\\s*(?:x|×)?\\s*${U}?\\s+(.+)$`, "i"))))
+    [, n, unit, name] = m;
+  const qty = parseQty(n);
+  if (!m || !qty || !name.trim()) return { name: t };
+  unit = (unit || "tk").toLowerCase();
+  return unit === "tk" || unit === "pakk"
+    ? { name: name.trim(), count: Math.max(1, Math.round(qty)) }
+    : { name: name.trim(), amount: { qty, unit } };
+};
+
 const relDays = (n) => (n === 0 ? "täna" : n === 1 ? "eile" : `${n} päeva tagasi`);
 
 /* ================================================================== */
@@ -179,14 +196,14 @@ const relDays = (n) => (n === 0 ? "täna" : n === 1 ? "eile" : `${n} päeva taga
 function buildProducts(data) {
   const map = new Map();
 
-  const push = (name, category, date, qty, unitPrice, total, store, manual, src) => {
+  const push = (name, category, date, qty, unitPrice, total, store, manual, src, unit) => {
     const k = key(name);
     if (!k) return;
     if (!map.has(k))
       map.set(k, { k, name: name.trim(), category: category || "Muu", purchases: [] });
     const p = map.get(k);
     if (category && category !== "Muu") p.category = category;
-    p.purchases.push({ date, qty: qty || 1, unitPrice, total, store, manual, src });
+    p.purchases.push({ date, qty: qty || 1, unit: unit || "tk", unitPrice, total, store, manual, src });
   };
 
   data.receipts.forEach((r) =>
@@ -195,7 +212,7 @@ function buildProducts(data) {
         type: "receipt",
         rid: r.id,
         idx,
-      })
+      }, l.unit)
     )
   );
   data.manualPurchases.forEach((m) =>
@@ -248,6 +265,15 @@ function buildProducts(data) {
       const daysSincePurchase = Math.max(daysBetween(last.date, now), 0);
       // Otsustav pole tänane seis, vaid seis järgmisel poeskäigul
       const bag = p.k === BAG_KEY;
+      // Tavaline ostukogus: viimase kuni 5 ostu mediaan (tükid täisarvuks, kaalukaup ~kg)
+      const recent = p.purchases.slice(-5);
+      const qs = recent.map((x) => x.qty || 1).sort((a, b) => a - b);
+      const medQty = qs.length % 2 ? qs[(qs.length - 1) / 2] : (qs[qs.length / 2 - 1] + qs[qs.length / 2]) / 2;
+      const lastUnit = recent[recent.length - 1].unit || "tk";
+      const countable = lastUnit === "tk" || lastUnit === "pakk";
+      const usual = countable
+        ? { count: Math.max(1, Math.round(medQty)), unit: lastUnit }
+        : { amount: { qty: Math.round(medQty * 100) / 100, unit: lastUnit } };
       const progress = bag ? 0 : est > 0 ? (daysSince + lookahead) / est : 0;
       const status = progress >= 1 ? "otsas" : progress >= 0.7 ? "varsti" : "olemas";
       const priced = p.purchases.filter((x) => x.unitPrice > 0);
@@ -255,6 +281,7 @@ function buildProducts(data) {
       return {
         ...p,
         bag,
+        usual,
         units: p.purchases.reduce((a, b) => a + (b.qty || 0), 0),
         est,
         progress,
@@ -1357,7 +1384,7 @@ function GaugeRow({ p, onClick, children, muted }) {
 /*  Nimekiri                                                           */
 /* ================================================================== */
 
-function QtyStepper({ value, onChange, min = 1, max = 99 }) {
+function QtyStepper({ value, onChange, min = 1, max = 99, suffix }) {
   const btnStyle = {
     width: 34,
     height: 34,
@@ -1401,9 +1428,12 @@ function QtyStepper({ value, onChange, min = 1, max = 99 }) {
           fontSize: 13,
           fontWeight: 600,
           fontVariantNumeric: "tabular-nums",
+          whiteSpace: "nowrap",
+          padding: suffix ? "0 3px" : 0,
         }}
       >
         {value}
+        {suffix ? ` ${suffix}` : ""}
       </span>
       <button
         type="button"
@@ -1425,6 +1455,11 @@ function ListView({ products, data, save, onOpen }) {
   const [quickStart, setQuickStart] = useState(false);
 
   const cart = data.cart || {};
+  // Mitu tükki osta: pereliikme valitud kogus (jagatud kõigile), muidu tavaline ostukogus
+  const want = data.want || {};
+  const wantOf = (k) => want[k] || products.find((x) => x.k === k)?.usual?.count || 1;
+  const setWant = (k, n) => save({ ...data, want: { ...want, [k]: Math.max(1, Math.round(n)) } });
+  const without = (obj, k) => Object.fromEntries(Object.entries(obj || {}).filter(([x]) => x !== k));
   // settings.store: "" = kiireloomulisuse järgi; iga muu väärtus (ka vanad poenimed) = kategooriate järgi
   const byCategory = !!data.settings?.store;
   const order = byCategory ? CATEGORY_ORDER : null;
@@ -1438,7 +1473,7 @@ function ListView({ products, data, save, onOpen }) {
   const toggleCart = (k) => {
     const next = { ...cart };
     if (next[k]) delete next[k];
-    else next[k] = 1;
+    else next[k] = wantOf(k);
     save({ ...data, cart: next });
   };
 
@@ -1450,7 +1485,7 @@ function ListView({ products, data, save, onOpen }) {
   };
 
   const stillHave = (p) =>
-    save({ ...data, stillHave: { ...data.stillHave, [p.k]: today() } });
+    save({ ...data, stillHave: { ...data.stillHave, [p.k]: today() }, want: without(want, p.k) });
 
   // Ostureisi lõpetamine kirjutab kõik korvis olnu korraga ostudeks.
   // Korvis võib olla nii varem ostetud tooteid (products, ennustusega) kui ka
@@ -1510,6 +1545,7 @@ function ListView({ products, data, save, onOpen }) {
       // ikkagi ostetakse, hakkab äpp seda automaatselt taas jälgima — muidu jääks
       // see igaveseks vaikimisi peidetuks, kuni keegi mäletab seda käsitsi tagasi lülitada.
       hidden: Object.fromEntries(Object.entries(data.hidden).filter(([k]) => !cart[k])),
+      want: Object.fromEntries(Object.entries(want).filter(([k]) => !cart[k])),
       cart: {},
     });
     setNoticeTone(T.fresh);
@@ -1517,28 +1553,47 @@ function ListView({ products, data, save, onOpen }) {
   };
 
   const addExtra = (name) => {
-    const t = (name ?? newItem).trim();
-    if (!t) return;
+    const raw = (name ?? newItem).trim();
+    if (!raw) return;
+    const { name: t, count, amount } = name != null ? { name: raw } : parseListInput(raw);
     const k = key(t);
-    if (data.extras.some((e) => key(e.name) === k)) {
-      setNoticeTone(T.soon);
-      setNotice(`${t} on juba nimekirjas`);
+    const qtyText = count ? `${count} tk` : amount ? fmtAmount(amount) : "";
+    const done = (msg, tone) => {
+      setNoticeTone(tone);
+      setNotice(msg);
       setNewItem("");
-      return;
+      setFocused(false);
+    };
+    const existing = data.extras.find((e) => key(e.name) === k);
+    if (existing) {
+      if (count) setWant(k, count);
+      else if (amount)
+        save({
+          ...data,
+          extras: data.extras.map((e) => (e.id === existing.id ? { ...e, amounts: [toBase(amount)] } : e)),
+        });
+      return done(
+        qtyText ? `${existing.name}: kogus muudetud, ${qtyText}` : `${t} on juba nimekirjas`,
+        qtyText ? T.fresh : T.soon
+      );
     }
     const already = needed.find((x) => x.k === k);
     if (already) {
-      setNoticeTone(T.soon);
-      setNotice(`${already.name} on nimekirjas juba ülal`);
-      setNewItem("");
-      setFocused(false);
-      return;
+      if (count) setWant(k, count);
+      return done(
+        count ? `${already.name} on nimekirjas ülal, kogus ${qtyText}` : `${already.name} on nimekirjas juba ülal`,
+        count ? T.fresh : T.soon
+      );
     }
     // Kui toode on juba tuntud (varasem ostuajalugu) ja äpi hinnangul pole see
     // veel otsakorral, anname sellest märku — vältimaks millegi lisamist, mida
     // tegelikult võib kodus veel piisavalt olla.
     const known = products.find((x) => x.k === k && !x.hidden);
-    save({ ...data, extras: [...data.extras, { id: uid(), name: t }] });
+    save({
+      ...data,
+      extras: [...data.extras, { id: uid(), name: t, ...(amount ? { amounts: [toBase(amount)] } : {}) }],
+      want: count ? { ...want, [k]: count } : want,
+    });
     if (known && !known.bag) {
       setNoticeTone(progressColor(known.progress));
       setNotice(
@@ -1589,29 +1644,39 @@ function ListView({ products, data, save, onOpen }) {
               display: "flex",
               gap: 6,
               marginTop: 9,
-              justifyContent: "flex-end",
+              justifyContent: "space-between",
               alignItems: "center",
             }}
           >
-            {!inCart && (
+            {p.usual?.count ? (
+              <QtyStepper
+                value={inCart ? cart[p.k] || 1 : wantOf(p.k)}
+                suffix={p.usual.unit}
+                onChange={(n) => (inCart ? setCartQty(p.k, n) : setWant(p.k, n))}
+              />
+            ) : (
+              <span style={{ fontSize: 13, color: T.soft, paddingLeft: 4, ...num }}>
+                tavaliselt ~{fmtAmount(p.usual.amount)}
+              </span>
+            )}
+            <div style={{ display: "flex", gap: 6 }}>
+              {!inCart && (
+                <Btn
+                  kind="quiet"
+                  style={{ padding: "10px 14px", fontSize: 13, minHeight: 40 }}
+                  onClick={() => stillHave(p)}
+                >
+                  On veel
+                </Btn>
+              )}
               <Btn
-                kind="quiet"
-                style={{ padding: "10px 15px", fontSize: 13, minHeight: 40 }}
-                onClick={() => stillHave(p)}
+                kind={inCart ? "quiet" : "solid"}
+                style={{ padding: "10px 16px", fontSize: 13, minHeight: 40 }}
+                onClick={() => toggleCart(p.k)}
               >
-                On veel
+                {inCart ? "Võta korvist" : "Korvi"}
               </Btn>
-            )}
-            {inCart && (
-              <QtyStepper value={cart[p.k] || 1} onChange={(n) => setCartQty(p.k, n)} />
-            )}
-            <Btn
-              kind={inCart ? "quiet" : "solid"}
-              style={{ padding: "10px 17px", fontSize: 13, minHeight: 40 }}
-              onClick={() => toggleCart(p.k)}
-            >
-              {inCart ? "Võta korvist" : "Korvi"}
-            </Btn>
+            </div>
           </div>
         </GaugeRow>
       </div>
@@ -1632,7 +1697,7 @@ function ListView({ products, data, save, onOpen }) {
           onChange={(e) => setNewItem(e.target.value)}
           onFocus={() => setFocused(true)}
           onKeyDown={(e) => e.key === "Enter" && addExtra()}
-          placeholder="Lisa midagi nimekirja"
+          placeholder="Lisa nimekirja, nt Kodujuust 3"
           style={field({ flex: 1, background: T.surface })}
         />
         <Btn kind="solid" onClick={() => addExtra()}>
@@ -1736,27 +1801,29 @@ function ListView({ products, data, save, onOpen }) {
       {data.extras.length > 0 && (
         <div style={{ marginBottom: 22 }}>
           {data.extras.map((e) => {
-            const inCart = !!cart[key(e.name)];
+            const k = key(e.name);
+            const inCart = !!cart[k];
+            const hasAmounts = e.amounts?.length > 0;
+            const sub = [hasAmounts ? fmtAmounts(e.amounts) : "", (e.from || []).join(", ")]
+              .filter(Boolean)
+              .join(" · ");
             return (
               <div
                 key={e.id}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
                   background: T.surface,
                   borderRadius: 14,
-                  padding: "12px 14px",
-                  marginBottom: 7,
-                  opacity: inCart ? 0.5 : 1,
+                  padding: "11px 13px 12px",
+                  marginBottom: 6,
+                  opacity: inCart ? 0.55 : 1,
                 }}
               >
-                <span style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <span
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
+                      width: 30,
+                      height: 30,
+                      borderRadius: 15,
                       background: "#EEF2F7",
                       color: T.faint,
                       fontSize: 15,
@@ -1768,47 +1835,62 @@ function ListView({ products, data, save, onOpen }) {
                   >
                     +
                   </span>
-                  <span style={{ minWidth: 0 }}>
-                    <span
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
                       style={{
-                        display: "block",
                         fontSize: 15.5,
+                        letterSpacing: "-0.01em",
                         textDecoration: inCart ? "line-through" : "none",
                       }}
                     >
                       {e.name}
-                    </span>
-                    {(e.amounts?.length > 0 || e.from?.length > 0) && (
-                      <span
-                        style={{ display: "block", fontSize: 12.5, color: T.faint, marginTop: 2, ...num }}
-                      >
-                        {[fmtAmounts(e.amounts), (e.from || []).join(", ")].filter(Boolean).join(" · ")}
-                      </span>
-                    )}
-                  </span>
-                </span>
-                <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
-                  {inCart && (
+                    </div>
+                    <div style={{ fontSize: 12, color: T.faint, marginTop: 2, ...num }}>
+                      {sub || "lisatud käsitsi"}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={`Eemalda ${e.name}`}
+                    onClick={() =>
+                      save({ ...data, extras: data.extras.filter((x) => x.id !== e.id), want: without(want, k) })
+                    }
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      color: T.faint,
+                      fontSize: 20,
+                      lineHeight: 1,
+                      cursor: "pointer",
+                      padding: "4px 2px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 6,
+                    marginTop: 9,
+                    justifyContent: hasAmounts ? "flex-end" : "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  {!hasAmounts && (
                     <QtyStepper
-                      value={cart[key(e.name)] || 1}
-                      onChange={(n) => setCartQty(key(e.name), n)}
+                      value={inCart ? cart[k] || 1 : wantOf(k)}
+                      suffix={products.find((x) => x.k === k)?.usual?.unit || "tk"}
+                      onChange={(n) => (inCart ? setCartQty(k, n) : setWant(k, n))}
                     />
                   )}
                   <Btn
                     kind={inCart ? "quiet" : "solid"}
-                    style={{ padding: "11px 15px", fontSize: 13, minHeight: 40 }}
-                    onClick={() => toggleCart(key(e.name))}
+                    style={{ padding: "10px 16px", fontSize: 13, minHeight: 40 }}
+                    onClick={() => toggleCart(k)}
                   >
-                    {inCart ? "Korvis" : "Korvi"}
-                  </Btn>
-                  <Btn
-                    kind="bare"
-                    style={{ padding: "11px 8px", fontSize: 13, minHeight: 40 }}
-                    onClick={() =>
-                      save({ ...data, extras: data.extras.filter((x) => x.id !== e.id) })
-                    }
-                  >
-                    Eemalda
+                    {inCart ? "Võta korvist" : "Korvi"}
                   </Btn>
                 </div>
               </div>
@@ -2224,9 +2306,11 @@ function AddView({ data, save, products, goList, imagesOk }) {
     const lines = merged;
     const cleared = { ...data.stillHave };
     const clearedCart = { ...data.cart };
+    const clearedWant = { ...(data.want || {}) };
     lines.forEach((l) => {
       delete cleared[key(l.name)];
       delete clearedCart[key(l.name)];
+      delete clearedWant[key(l.name)];
     });
     // Kui sama toode märgiti poes käsitsi ostetuks (ostukorv), ei tohi päris tšekk
     // seda teist korda arvestada. Sama kehtib varem tehtud hinnanguliste kirjete kohta:
@@ -2261,6 +2345,7 @@ function AddView({ data, save, products, goList, imagesOk }) {
         },
       ],
       stillHave: cleared,
+      want: clearedWant,
       // Ostetud toode, mille jälgimine oli peatatud, läheb automaatselt taas jälgimisele.
       hidden: Object.fromEntries(Object.entries(data.hidden).filter(([k]) => !names.has(k))),
     });
@@ -3868,6 +3953,10 @@ function FaqSheet({ onClose }) {
         [
           "Kuidas äpp teab, mis on kodus otsas?",
           "Äpp vaatab sinu ostuajalugu: kui tihti oled mingit toodet varem ostnud, arvutab keskmise „kestvuse“ ja näitab tootel riba, mis täitub selle aja jooksul. Kui riba jõuab lõpuni, läheb toode „otsas“ olekusse ja tõuseb Nimekirja. Mida rohkem tšekke lisad, seda täpsem ennustus on.",
+        ],
+        [
+          "Kust poodi mineja teab, kui palju osta?",
+          "Iga toote all nimekirjas on kogus, nt „3 tk“. Äpp paneb sinna automaatselt koguse, mida olete tšekkide järgi tavaliselt korraga ostnud. Seda saab muuta +/- nuppudega või kirjutades lisamise kasti nt „Kodujuust 5“, „3x jogurt“ või „Hakkliha 500 g“. Muudetud kogus on kohe näha kõigil pereliikmetel, kes kasutavad sama pere-koodi. Korvi pannes läheb kogus kaasa ja pärast ostu algab järgmine kord jälle tavalisest kogusest.",
         ],
         [
           "Mis on nimekirja all olev „Veel kodus“?",
