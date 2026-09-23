@@ -2695,6 +2695,7 @@ const WD = ["E", "T", "K", "N", "R", "L", "P"];
 
 function MonthCalendar({ receipts }) {
   const [off, setOff] = useState(0);
+  const [openDay, setOpenDay] = useState(null);
   const base = new Date();
   base.setDate(1);
   base.setMonth(base.getMonth() + off);
@@ -2706,10 +2707,13 @@ function MonthCalendar({ receipts }) {
   const days = new Date(y, m + 1, 0).getDate();
 
   const byDay = {};
+  const receiptsByDay = {};
   receipts.forEach((r) => {
     const d = new Date(r.date);
-    if (d.getFullYear() === y && d.getMonth() === m)
+    if (d.getFullYear() === y && d.getMonth() === m) {
       byDay[d.getDate()] = (byDay[d.getDate()] || 0) + (r.total || 0);
+      (receiptsByDay[d.getDate()] = receiptsByDay[d.getDate()] || []).push(r);
+    }
   });
   const values = Object.values(byDay);
   const max = values.length ? Math.max(...values) : 0;
@@ -2776,9 +2780,19 @@ function MonthCalendar({ receipts }) {
           if (!d) return <div key={`e${i}`} />;
           const v = byDay[d] || 0;
           const ratio = max > 0 ? v / max : 0;
+          const hasReceipts = !!receiptsByDay[d];
           return (
             <div
               key={d}
+              role={hasReceipts ? "button" : undefined}
+              tabIndex={hasReceipts ? 0 : undefined}
+              aria-label={hasReceipts ? `${d}. ${MONTHS[m]}: vaata tšekke` : undefined}
+              onClick={hasReceipts ? () => setOpenDay(d) : undefined}
+              onKeyDown={
+                hasReceipts
+                  ? (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setOpenDay(d))
+                  : undefined
+              }
               style={{
                 aspectRatio: "1",
                 borderRadius: 9,
@@ -2789,6 +2803,7 @@ function MonthCalendar({ receipts }) {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 1,
+                cursor: hasReceipts ? "pointer" : "default",
               }}
             >
               <span
@@ -2810,7 +2825,76 @@ function MonthCalendar({ receipts }) {
           );
         })}
       </div>
+      {openDay && receiptsByDay[openDay] && (
+        <DayReceiptsSheet
+          title={`${openDay}. ${MONTHS[m]} ${y}`}
+          receipts={receiptsByDay[openDay]}
+          onClose={() => setOpenDay(null)}
+        />
+      )}
     </Panel>
+  );
+}
+
+// Ühe kalendripäeva tšekid koos toodetega (ainult vaatamiseks; parandada saab Tšekk vaates)
+function DayReceiptsSheet({ title, receipts, onClose }) {
+  const dayTotal = receipts.reduce((a, r) => a + (r.total || 0), 0);
+  return (
+    <Sheet onClose={onClose} z={60}>
+      <div style={{ fontSize: 21, letterSpacing: "-0.015em" }}>{title}</div>
+      <div style={{ fontSize: 13, color: T.faint, marginTop: 3, marginBottom: 16, ...num }}>
+        {receipts.length === 1 ? "1 tšekk" : `${receipts.length} tšekki`} · kokku {eur(dayTotal)}
+      </div>
+      {receipts.map((r) => (
+        <Panel key={r.id} style={{ marginBottom: 10 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              gap: 12,
+              marginBottom: 4,
+            }}
+          >
+            <span style={{ fontSize: 16, fontWeight: 600 }}>{r.estimated ? "Ostukäik" : r.store}</span>
+            <span style={{ fontSize: 16, fontWeight: 600, ...num }}>{eur(r.total)}</span>
+          </div>
+          {r.estimated && (
+            <div style={{ fontSize: 12.5, color: T.faint, lineHeight: 1.5, marginBottom: 4 }}>
+              Hinnanguline: ostukäik lõpetati ilma tšekita, hinnad on viimastest ostudest.
+            </div>
+          )}
+          {r.lines.map((l, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+                gap: 12,
+                padding: "9px 0",
+                borderTop: `1px solid ${T.hair}`,
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14.5 }}>{l.name}</div>
+                <div style={{ fontSize: 12, color: T.faint, marginTop: 1, ...num }}>
+                  {l.qty || 1} {l.unit || "tk"}
+                  {l.unitPrice > 0 ? ` × ${eur(l.unitPrice)}` : ""}
+                </div>
+              </div>
+              <span style={{ fontSize: 14.5, whiteSpace: "nowrap", ...num }}>{eur(l.total)}</span>
+            </div>
+          ))}
+        </Panel>
+      ))}
+      <div style={{ fontSize: 12.5, color: T.faint, lineHeight: 1.5, margin: "4px 2px 12px" }}>
+        Tšeki parandamiseks ava Tšekk vaade ja vali see „Salvestatud tšekid“ alt.
+      </div>
+      <Btn kind="solid" full onClick={onClose}>
+        Sulge
+      </Btn>
+    </Sheet>
   );
 }
 
@@ -3635,7 +3719,7 @@ function GuideSheet({ onClose }) {
     ],
     [
       "Kulud",
-      "„Kulud“ vaade näitab, kuhu raha kuu lõikes läheb ja milliste kategooriate peale kõige rohkem kulub.",
+      "„Kulud“ vaade näitab, kuhu raha kuu lõikes läheb ja milliste kategooriate peale kõige rohkem kulub. Kalendris saad vajutada päevale, et näha selle päeva tšekke ja tooteid.",
     ],
     [
       "Minu konto",

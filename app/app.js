@@ -2297,6 +2297,7 @@ ${xref}
   const WD = ["E", "T", "K", "N", "R", "L", "P"];
   function MonthCalendar({ receipts }) {
     const [off, setOff] = useState(0);
+    const [openDay, setOpenDay] = useState(null);
     const base = /* @__PURE__ */ new Date();
     base.setDate(1);
     base.setMonth(base.getMonth() + off);
@@ -2306,10 +2307,13 @@ ${xref}
     const startIdx = (first.getDay() + 6) % 7;
     const days = new Date(y, m + 1, 0).getDate();
     const byDay = {};
+    const receiptsByDay = {};
     receipts.forEach((r) => {
       const d = new Date(r.date);
-      if (d.getFullYear() === y && d.getMonth() === m)
+      if (d.getFullYear() === y && d.getMonth() === m) {
         byDay[d.getDate()] = (byDay[d.getDate()] || 0) + (r.total || 0);
+        (receiptsByDay[d.getDate()] = receiptsByDay[d.getDate()] || []).push(r);
+      }
     });
     const values = Object.values(byDay);
     const max = values.length ? Math.max(...values) : 0;
@@ -2361,10 +2365,16 @@ ${xref}
       if (!d) return /* @__PURE__ */ React.createElement("div", { key: `e${i}` });
       const v = byDay[d] || 0;
       const ratio = max > 0 ? v / max : 0;
+      const hasReceipts = !!receiptsByDay[d];
       return /* @__PURE__ */ React.createElement(
         "div",
         {
           key: d,
+          role: hasReceipts ? "button" : void 0,
+          tabIndex: hasReceipts ? 0 : void 0,
+          "aria-label": hasReceipts ? `${d}. ${MONTHS[m]}: vaata t\u0161ekke` : void 0,
+          onClick: hasReceipts ? () => setOpenDay(d) : void 0,
+          onKeyDown: hasReceipts ? (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setOpenDay(d)) : void 0,
           style: {
             aspectRatio: "1",
             borderRadius: 9,
@@ -2374,7 +2384,8 @@ ${xref}
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 1
+            gap: 1,
+            cursor: hasReceipts ? "pointer" : "default"
           }
         },
         /* @__PURE__ */ React.createElement(
@@ -2391,7 +2402,46 @@ ${xref}
         ),
         v > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 8.5, color: T.gold, fontWeight: 600, ...num } }, Math.round(v), "\u20AC")
       );
-    })));
+    })), openDay && receiptsByDay[openDay] && /* @__PURE__ */ React.createElement(
+      DayReceiptsSheet,
+      {
+        title: `${openDay}. ${MONTHS[m]} ${y}`,
+        receipts: receiptsByDay[openDay],
+        onClose: () => setOpenDay(null)
+      }
+    ));
+  }
+  function DayReceiptsSheet({ title, receipts, onClose }) {
+    const dayTotal = receipts.reduce((a, r) => a + (r.total || 0), 0);
+    return /* @__PURE__ */ React.createElement(Sheet, { onClose, z: 60 }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 21, letterSpacing: "-0.015em" } }, title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, marginTop: 3, marginBottom: 16, ...num } }, receipts.length === 1 ? "1 t\u0161ekk" : `${receipts.length} t\u0161ekki`, " \xB7 kokku ", eur(dayTotal)), receipts.map((r) => /* @__PURE__ */ React.createElement(Panel, { key: r.id, style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        style: {
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          gap: 12,
+          marginBottom: 4
+        }
+      },
+      /* @__PURE__ */ React.createElement("span", { style: { fontSize: 16, fontWeight: 600 } }, r.estimated ? "Ostuk\xE4ik" : r.store),
+      /* @__PURE__ */ React.createElement("span", { style: { fontSize: 16, fontWeight: 600, ...num } }, eur(r.total))
+    ), r.estimated && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: T.faint, lineHeight: 1.5, marginBottom: 4 } }, "Hinnanguline: ostuk\xE4ik l\xF5petati ilma t\u0161ekita, hinnad on viimastest ostudest."), r.lines.map((l, i) => /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        key: i,
+        style: {
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          gap: 12,
+          padding: "9px 0",
+          borderTop: `1px solid ${T.hair}`
+        }
+      },
+      /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14.5 } }, l.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: T.faint, marginTop: 1, ...num } }, l.qty || 1, " ", l.unit || "tk", l.unitPrice > 0 ? ` \xD7 ${eur(l.unitPrice)}` : "")),
+      /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14.5, whiteSpace: "nowrap", ...num } }, eur(l.total))
+    )))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: T.faint, lineHeight: 1.5, margin: "4px 2px 12px" } }, "T\u0161eki parandamiseks ava T\u0161ekk vaade ja vali see \u201ESalvestatud t\u0161ekid\u201C alt."), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onClose }, "Sulge"));
   }
   function WeekdayBars({ receipts }) {
     const sums = [0, 0, 0, 0, 0, 0, 0];
@@ -2999,7 +3049,7 @@ ${xref}
       ],
       [
         "Kulud",
-        "\u201EKulud\u201C vaade n\xE4itab, kuhu raha kuu l\xF5ikes l\xE4heb ja milliste kategooriate peale k\xF5ige rohkem kulub."
+        "\u201EKulud\u201C vaade n\xE4itab, kuhu raha kuu l\xF5ikes l\xE4heb ja milliste kategooriate peale k\xF5ige rohkem kulub. Kalendris saad vajutada p\xE4evale, et n\xE4ha selle p\xE4eva t\u0161ekke ja tooteid."
       ],
       [
         "Minu konto",

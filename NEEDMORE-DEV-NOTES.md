@@ -304,3 +304,11 @@ toode läheb rühma "Muu". CACHE -> `needmore-v13`.
 Seadetest eemaldati "Tavalised tooted" paneel: see avas sama
 QuickStartSheet'i, mis on alati nimekirja all ("Vali tavalised tooted" tühja
 nimekirja puhul, muidu "Lisa veel tavalisi tooteid"). CACHE -> `needmore-v14`.
+
+## 23.09.2026: kalendripäeva tšekid
+
+Kulude kuukalendris (MonthCalendar) on kuluga päevad klikitavad. Vajutus avab
+DayReceiptsSheet'i: selle päeva tšekid (pood, summa) ja iga rea kogus, ühikuhind
+ja summa. Hinnangulised ostukäigud (`estimated`) on märgitud. Aken on ainult
+vaatamiseks; parandamine käib endiselt Tšekk → Salvestatud tšekid. Juhendi
+Kulud-lõiku lisati lause. CACHE -> `needmore-v15`.
