@@ -64,6 +64,7 @@ const emptyData = {
   cart: {},
   settings: { mode: "daily", days: [], household: 2, store: "" },
   mealPlan: {},
+  myRecipes: [],
 };
 
 // Kategooriate järjestus nimekirjas: tavaline poes kõndimise suund
@@ -135,6 +136,39 @@ const daysAgo = (n) => {
   d.setDate(d.getDate() - n);
   return localISO(d);
 };
+
+/* --- Kogused: oma retseptid ja ostunimekiri --- */
+const UNITS = ["g", "kg", "ml", "l", "tk", "pakk", "spl", "tl"];
+const UNIT_BASE = { kg: ["g", 1000], l: ["ml", 1000] };
+const toBase = (a) =>
+  UNIT_BASE[a.unit] ? { qty: a.qty * UNIT_BASE[a.unit][1], unit: UNIT_BASE[a.unit][0] } : { ...a };
+const parseQty = (v) => Number(String(v ?? "").replace(",", ".")) || 0;
+// Ümardus, mis on poes ostes mõistlik: tükke ei osteta pooli, grammid ümmarguseks
+const roundQty = (qty, unit) => {
+  if (unit === "tk" || unit === "pakk") return Math.max(1, Math.ceil(qty - 1e-9));
+  if (unit === "g" || unit === "ml")
+    return qty < 10 ? Math.max(1, Math.round(qty)) : qty < 100 ? Math.round(qty / 5) * 5 : Math.round(qty / 10) * 10;
+  if (unit === "spl" || unit === "tl") return Math.max(0.5, Math.round(qty * 2) / 2);
+  return Math.max(0.05, Math.round(qty * 100) / 100);
+};
+const fmtNum = (n) => String(Math.round(n * 100) / 100).replace(".", ",");
+const fmtAmount = (a) => {
+  const b = toBase(a);
+  if (b.unit === "g" && b.qty >= 1000) return `${fmtNum(b.qty / 1000)} kg`;
+  if (b.unit === "ml" && b.qty >= 1000) return `${fmtNum(b.qty / 1000)} l`;
+  return `${fmtNum(b.qty)} ${b.unit}`;
+};
+const fmtAmounts = (list) => (list || []).map(fmtAmount).join(" + ");
+const mergeAmounts = (list, add) => {
+  const out = (list || []).map((a) => ({ ...a }));
+  const b = toBase(add);
+  const hit = out.find((a) => a.unit === b.unit);
+  if (hit) hit.qty += b.qty;
+  else out.push(b);
+  return out;
+};
+const scaleAmount = (item, factor) =>
+  parseQty(item.qty) > 0 ? { qty: roundQty(parseQty(item.qty) * factor, item.unit), unit: item.unit } : null;
 
 const relDays = (n) => (n === 0 ? "täna" : n === 1 ? "eile" : `${n} päeva tagasi`);
 
@@ -1734,13 +1768,23 @@ function ListView({ products, data, save, onOpen }) {
                   >
                     +
                   </span>
-                  <span
-                    style={{
-                      fontSize: 15.5,
-                      textDecoration: inCart ? "line-through" : "none",
-                    }}
-                  >
-                    {e.name}
+                  <span style={{ minWidth: 0 }}>
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: 15.5,
+                        textDecoration: inCart ? "line-through" : "none",
+                      }}
+                    >
+                      {e.name}
+                    </span>
+                    {(e.amounts?.length > 0 || e.from?.length > 0) && (
+                      <span
+                        style={{ display: "block", fontSize: 12.5, color: T.faint, marginTop: 2, ...num }}
+                      >
+                        {[fmtAmounts(e.amounts), (e.from || []).join(", ")].filter(Boolean).join(" · ")}
+                      </span>
+                    )}
                   </span>
                 </span>
                 <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
@@ -3715,7 +3759,7 @@ function GuideSheet({ onClose }) {
     ],
     [
       "Retseptid ja Nädalaplaan",
-      "„Retseptid“ pakub AI abiga roogi just sellest, mis kodus arvatavasti juba on. „Nädalaplaan“ aitab kogu nädala menüü ette planeerida — iga päeva jaoks kas mõni pakutud retsept või ise kirjutatud toit. Mõlemad kuuluvad Pro paketi alla.",
+      "„Minu retseptid“ all saad kirja panna oma pere road koos kogustega. Retsepti avades vali, mitmele inimesele teed, ja äpp arvutab kogused ümber ning lisab puuduvad tooted ostunimekirja. See on kõigile tasuta. „Retseptisoovitused“ pakub AI abiga roogi sellest, mis kodus arvatavasti juba on, ja „Nädalaplaan“ aitab kogu nädala menüü ette planeerida. Need kaks kuuluvad Pro paketi alla.",
     ],
     [
       "Kulud",
@@ -3856,6 +3900,10 @@ function FaqSheet({ onClose }) {
       label: "Retseptid, Nädalaplaan ja Pro pakett",
       items: [
         [
+          "Kuidas oma retsepti teha ja tooted nimekirja saada?",
+          "Ava Retseptid → „Minu retseptid“ → „Loo retsept“. Kirjuta roa nimi, mitmele inimesele retsept on ning koostisosad koguse ja ühikuga. Retsepti avades vali „Teen … inimesele“, märgi tooted, mida on vaja osta, ja vajuta „Lisa nimekirja“. Nimekirjas on näha kogus ja mis roa jaoks toode on. Kui sama toode on juba nimekirjas, liidetakse kogused kokku. Oma retseptid on tasuta.",
+        ],
+        [
           "Mis vahe on Retseptidel ja Nädalaplaanil?",
           "„Retseptid“ pakub kohe AI roogi sellest, mida kodus arvatavasti on. „Nädalaplaan“ aitab kogu nädala peale ette mõelda — iga päeva jaoks saab valida kas mõne pakutud retsepti või kirjutada ise, mida süüa.",
         ],
@@ -3962,46 +4010,396 @@ function FaqSheet({ onClose }) {
 /*  Retseptid                                                          */
 /* ================================================================== */
 
+/* ================================================================== */
+/*  Minu retseptid — kasutaja enda retseptid (tasuta, ilma AI-ta)      */
+/* ================================================================== */
+
+function MyRecipesList({ recipes, onNew, onOpen }) {
+  if (!recipes.length)
+    return (
+      <Panel style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 6 }}>Teie pere road</div>
+        <div style={{ fontSize: 14, color: T.faint, lineHeight: 1.55, marginBottom: 16 }}>
+          Kirjuta üles road, mida teete tihti. Retsepti avades valid, mitmele inimesele süüa
+          teed. Äpp arvutab kogused ümber ja lisab puuduvad tooted ostunimekirja.
+        </div>
+        <Btn kind="solid" full onClick={onNew}>
+          Loo retsept
+        </Btn>
+      </Panel>
+    );
+  return (
+    <div>
+      <Btn kind="solid" full onClick={onNew} style={{ marginBottom: 12 }}>
+        Loo retsept
+      </Btn>
+      {recipes.map((r) => (
+        <div
+          key={r.id}
+          onClick={() => onOpen(r)}
+          style={{
+            background: T.surface,
+            borderRadius: 14,
+            padding: "15px 16px",
+            marginBottom: 7,
+            cursor: "pointer",
+          }}
+        >
+          <div style={{ fontSize: 16.5, letterSpacing: "-0.01em" }}>{r.name}</div>
+          <div style={{ fontSize: 13, color: T.faint, marginTop: 4, ...num }}>
+            {r.serves} inimesele · {r.items.length} koostisosa
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MyRecipeEditor({ recipe, household, productNames, onSave, onDelete, onClose }) {
+  const blankItem = () => ({ id: uid(), name: "", qty: "", unit: "g" });
+  const [name, setName] = useState(recipe.name || "");
+  const [serves, setServes] = useState(recipe.serves || household);
+  const [items, setItems] = useState(
+    recipe.items?.length ? recipe.items.map((i) => ({ ...i, id: uid(), qty: i.qty ? fmtNum(i.qty) : "" })) : [blankItem(), blankItem(), blankItem()]
+  );
+  const [stepsText, setStepsText] = useState((recipe.steps || []).join("\n"));
+  const [error, setError] = useState("");
+
+  const update = (id, patch) => setItems(items.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+
+  const submit = () => {
+    const clean = items
+      .filter((i) => i.name.trim())
+      .map((i) => ({ name: i.name.trim(), qty: parseQty(i.qty), unit: i.unit }));
+    if (!name.trim()) return setError("Anna retseptile nimi.");
+    if (!clean.length) return setError("Lisa vähemalt üks koostisosa.");
+    onSave({
+      id: recipe.id || uid(),
+      name: name.trim(),
+      serves,
+      items: clean,
+      steps: stepsText
+        .split("\n")
+        .map((x) => x.trim())
+        .filter(Boolean),
+      createdAt: recipe.createdAt || today(),
+    });
+  };
+
+  return (
+    <Sheet onClose={onClose} z={65}>
+      <div style={{ fontSize: 21, letterSpacing: "-0.015em", marginBottom: 16 }}>
+        {recipe.id ? "Muuda retsepti" : "Uus retsept"}
+      </div>
+
+      <input
+        id="nm-recipe-name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Roa nimi, nt Hakklihakaste"
+        style={field({ width: "100%", marginBottom: 12, background: T.surface, boxSizing: "border-box" })}
+      />
+
+      <Panel style={{ marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 15 }}>Mitmele inimesele</div>
+          <div style={{ fontSize: 12.5, color: T.faint, marginTop: 2 }}>Kogused on selle arvu jaoks</div>
+        </div>
+        <QtyStepper value={serves} onChange={setServes} min={1} max={20} />
+      </Panel>
+
+      <Panel style={{ marginBottom: 10 }}>
+        <Label style={{ marginBottom: 8 }}>Koostisosad</Label>
+        <datalist id="nm-product-names">
+          {productNames.map((n) => (
+            <option key={n} value={n} />
+          ))}
+        </datalist>
+        {items.map((i, idx) => (
+          <div
+            key={i.id}
+            style={{
+              display: "flex",
+              gap: 6,
+              alignItems: "center",
+              padding: "7px 0",
+              borderTop: idx === 0 ? "none" : `1px solid ${T.hair}`,
+            }}
+          >
+            <input
+              id={`nm-ing-name-${i.id}`}
+              value={i.name}
+              onChange={(e) => update(i.id, { name: e.target.value })}
+              placeholder="Toode"
+              list="nm-product-names"
+              style={field({ flex: "1 1 auto", minWidth: 0, padding: "10px 11px", fontSize: 14.5 })}
+            />
+            <input
+              id={`nm-ing-qty-${i.id}`}
+              value={i.qty}
+              onChange={(e) => update(i.id, { qty: e.target.value })}
+              placeholder="Kogus"
+              inputMode="decimal"
+              style={field({ width: 64, flexShrink: 0, padding: "10px 9px", fontSize: 14.5, textAlign: "right", ...num })}
+            />
+            <select
+              id={`nm-ing-unit-${i.id}`}
+              value={i.unit}
+              onChange={(e) => update(i.id, { unit: e.target.value })}
+              style={field({ width: 66, flexShrink: 0, padding: "10px 8px", fontSize: 14.5 })}
+            >
+              {UNITS.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              aria-label="Eemalda koostisosa"
+              onClick={() => setItems(items.length > 1 ? items.filter((x) => x.id !== i.id) : [blankItem()])}
+              style={{
+                border: "none",
+                background: "transparent",
+                color: T.faint,
+                fontSize: 18,
+                cursor: "pointer",
+                padding: "4px 2px",
+                flexShrink: 0,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        <Btn kind="quiet" full style={{ marginTop: 8 }} onClick={() => setItems([...items, blankItem()])}>
+          + Lisa koostisosa
+        </Btn>
+        <div style={{ fontSize: 12.5, color: T.faint, lineHeight: 1.5, marginTop: 10 }}>
+          Kogus võib jääda tühjaks (nt sool maitse järgi). Kasuta toote nime nagu tšekil, siis teab
+          äpp, kas see on kodus olemas.
+        </div>
+      </Panel>
+
+      <Panel style={{ marginBottom: 12 }}>
+        <Label style={{ marginBottom: 8 }}>Valmistamine (soovi korral)</Label>
+        <textarea
+          id="nm-recipe-steps"
+          value={stepsText}
+          onChange={(e) => setStepsText(e.target.value)}
+          placeholder={"Iga samm eraldi reale, nt\nPruunista hakkliha\nLisa sibul ja hauta 10 min"}
+          rows={4}
+          style={field({ width: "100%", boxSizing: "border-box", resize: "vertical", lineHeight: 1.5 })}
+        />
+      </Panel>
+
+      {error && (
+        <div style={{ fontSize: 13.5, color: T.out, marginBottom: 10 }}>{error}</div>
+      )}
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <Btn kind="solid" style={{ flex: 1 }} onClick={submit}>
+          Salvesta retsept
+        </Btn>
+        <Btn onClick={onClose}>Loobu</Btn>
+      </div>
+      {onDelete && (
+        <ConfirmBtn label="Kustuta retsept" confirmLabel="Vajuta uuesti — kustutan" onConfirm={onDelete} />
+      )}
+    </Sheet>
+  );
+}
+
+function MyRecipeSheet({ r, data, save, classify, household, onEdit, onClose }) {
+  const [people, setPeople] = useState(household);
+  const factor = people / (r.serves || 1);
+  const inList = (n) => data.extras.some((e) => key(e.name) === key(n));
+  const [picked, setPicked] = useState(() =>
+    r.items.map((i) => classify(i.name) === "missing" && !inList(i.name))
+  );
+  const [added, setAdded] = useState(0);
+
+  const STATE = {
+    have: { color: T.fresh, label: "kodus olemas" },
+    staple: { color: T.soon, label: "eeldan et on olemas" },
+    missing: { color: T.soon, label: "vaja osta" },
+  };
+
+  const count = picked.filter(Boolean).length;
+  const addToList = () => {
+    let extras = [...data.extras];
+    r.items.forEach((i, idx) => {
+      if (!picked[idx]) return;
+      const amount = scaleAmount(i, factor);
+      const at = extras.findIndex((e) => key(e.name) === key(i.name));
+      if (at === -1) {
+        extras.push({ id: uid(), name: i.name, amounts: amount ? [toBase(amount)] : [], from: [r.name] });
+      } else {
+        const e = extras[at];
+        extras[at] = {
+          ...e,
+          amounts: amount ? mergeAmounts(e.amounts, amount) : e.amounts || [],
+          from: [...new Set([...(e.from || []), r.name])],
+        };
+      }
+    });
+    save({ ...data, extras });
+    setAdded(count);
+    setPicked(picked.map(() => false));
+  };
+
+  return (
+    <Sheet onClose={onClose} z={60}>
+      <div style={{ fontSize: 22, letterSpacing: "-0.02em", marginBottom: 4 }}>{r.name}</div>
+      <div style={{ fontSize: 13.5, color: T.faint, marginBottom: 14 }}>
+        Retsept on kirjutatud {r.serves} inimesele
+      </div>
+
+      <Panel style={{ marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ fontSize: 15 }}>Teen</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <QtyStepper value={people} onChange={(n) => (setPeople(n), setAdded(0))} min={1} max={20} />
+          <span style={{ fontSize: 15 }}>inimesele</span>
+        </div>
+      </Panel>
+
+      <Panel style={{ marginBottom: 10 }}>
+        <Label style={{ marginBottom: 6 }}>Koostisosad {people} inimesele</Label>
+        {r.items.map((i, idx) => {
+          const state = classify(i.name);
+          const st = STATE[state];
+          const listed = inList(i.name);
+          const amount = scaleAmount(i, factor);
+          return (
+            <label
+              key={idx}
+              htmlFor={`nm-pick-${r.id}-${idx}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 11,
+                padding: "11px 0",
+                borderTop: idx === 0 ? "none" : `1px solid ${T.hair}`,
+                cursor: "pointer",
+              }}
+            >
+              <input
+                id={`nm-pick-${r.id}-${idx}`}
+                type="checkbox"
+                checked={!!picked[idx]}
+                onChange={(e) => {
+                  setPicked(picked.map((v, j) => (j === idx ? e.target.checked : v)));
+                  setAdded(0);
+                }}
+                style={{ width: 20, height: 20, accentColor: T.gold, flexShrink: 0, margin: 0 }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15 }}>{i.name}</div>
+                <div style={{ fontSize: 12.5, color: listed ? T.fresh : st.color, marginTop: 2 }}>
+                  {listed ? "nimekirjas" : st.label}
+                </div>
+              </div>
+              <span style={{ fontSize: 14, color: T.soft, whiteSpace: "nowrap", ...num }}>
+                {amount ? fmtAmount(amount) : "maitse järgi"}
+              </span>
+            </label>
+          );
+        })}
+        <Btn
+          kind={count ? "solid" : "quiet"}
+          full
+          style={{ marginTop: 12, opacity: count ? 1 : 0.6 }}
+          onClick={() => count && addToList()}
+        >
+          {count
+            ? `Lisa ${count} ${count === 1 ? "toode" : "toodet"} nimekirja`
+            : added
+            ? `${added} ${added === 1 ? "toode" : "toodet"} lisatud nimekirja ✓`
+            : "Märgi tooted, mida on vaja osta"}
+        </Btn>
+      </Panel>
+
+      {r.steps?.length > 0 && (
+        <Panel style={{ marginBottom: 10 }}>
+          <Label>Valmistamine</Label>
+          {r.steps.map((s, i) => (
+            <div key={i} style={{ display: "flex", gap: 12, padding: "9px 0" }}>
+              <span
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  background: tint(T.gold, 0.15),
+                  color: T.gold,
+                  fontSize: 12.5,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  marginTop: 1,
+                }}
+              >
+                {i + 1}
+              </span>
+              <span style={{ fontSize: 14.5, lineHeight: 1.6 }}>{s}</span>
+            </div>
+          ))}
+        </Panel>
+      )}
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <Btn style={{ flex: 1 }} onClick={() => onEdit(r)}>
+          Muuda retsepti
+        </Btn>
+        <Btn kind="solid" style={{ flex: 1 }} onClick={onClose}>
+          Sulge
+        </Btn>
+      </div>
+    </Sheet>
+  );
+}
+
 function RecipesView({ data, save, products, plan, onOpenAccount }) {
+  const isPro = plan === "pro";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [open, setOpen] = useState(null);
-  const [subTab, setSubTab] = useState("recipes"); // "recipes" | "plan"
+  const [subTab, setSubTab] = useState(isPro ? "recipes" : "mine"); // "mine" | "recipes" | "plan"
+  const [openMine, setOpenMine] = useState(null); // oma retsepti id
+  const [editing, setEditing] = useState(null); // {} = uus, retsept = muutmine
 
-  if (plan !== "pro")
-    return (
-      <div style={{ padding: "0 14px 16px" }}>
-        <Panel style={{ padding: "26px 20px", textAlign: "center" }}>
-          <div
-            style={{
-              width: 52,
-              height: 52,
-              borderRadius: 26,
-              background: tint(T.gold, 0.14),
-              color: T.gold,
-              fontSize: 24,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 14px",
-            }}
-          >
-            ✨
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
-            Retseptid on Pro pakett
-          </div>
-          <div style={{ fontSize: 14, color: T.faint, lineHeight: 1.55, marginBottom: 18 }}>
-            AI paneb kokku toidusoovitused just sellest, mis teil kodus juba olemas on
-            — ilma et peaksite ise mõtlema, mida süüa teha. Sisaldub Pro paketis koos
-            tulevaste söögikorra-planeerimise tööriistadega.
-          </div>
-          <Btn kind="solid" full onClick={onOpenAccount}>
-            Vaata Pro paketti
-          </Btn>
-        </Panel>
+  const myRecipes = data.myRecipes || [];
+
+  const proLock = (
+    <Panel style={{ padding: "26px 20px", textAlign: "center" }}>
+      <div
+        style={{
+          width: 52,
+          height: 52,
+          borderRadius: 26,
+          background: tint(T.gold, 0.14),
+          color: T.gold,
+          fontSize: 24,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          margin: "0 auto 14px",
+        }}
+      >
+        ✨
       </div>
-    );
+      <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
+        {subTab === "plan" ? "Nädalaplaan on Pro paketis" : "Retseptisoovitused on Pro paketis"}
+      </div>
+      <div style={{ fontSize: 14, color: T.faint, lineHeight: 1.55, marginBottom: 18 }}>
+        AI paneb kokku toidusoovitused just sellest, mis teil kodus juba olemas on, ja
+        Nädalaplaaniga saad nädala toidud ette ära planeerida. Oma retseptid on kõigile
+        tasuta.
+      </div>
+      <Btn kind="solid" full onClick={onOpenAccount}>
+        Vaata Pro paketti
+      </Btn>
+    </Panel>
+  );
 
   const household = data.settings?.household || 2;
   // Kodus on tõenäoliselt see, mida on ostetud ja mis pole veel otsa saanud
@@ -4047,7 +4445,10 @@ function RecipesView({ data, save, products, plan, onOpenAccount }) {
 
   return (
     <div style={{ padding: "0 14px 16px" }}>
-      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+        <button onClick={() => setSubTab("mine")} style={subTabChip(subTab === "mine")}>
+          Minu retseptid
+        </button>
         <button onClick={() => setSubTab("recipes")} style={subTabChip(subTab === "recipes")}>
           Retseptisoovitused
         </button>
@@ -4056,18 +4457,29 @@ function RecipesView({ data, save, products, plan, onOpenAccount }) {
         </button>
       </div>
 
-      {subTab === "plan" && (
-        <MealPlanner data={data} save={save} recipes={stored?.list || []} onOpenRecipe={setOpen} />
+      {subTab === "mine" && (
+        <MyRecipesList recipes={myRecipes} onNew={() => setEditing({})} onOpen={(r) => setOpenMine(r.id)} />
       )}
 
-      {subTab === "recipes" && inStock.length < 3 && (
+      {!isPro && subTab !== "mine" && proLock}
+
+      {isPro && subTab === "plan" && (
+        <MealPlanner
+          data={data}
+          save={save}
+          recipes={[...(stored?.list || []), ...myRecipes.map((r) => ({ ...r, mine: true }))]}
+          onOpenRecipe={(r) => (r.mine ? setOpenMine(r.id) : setOpen(r))}
+        />
+      )}
+
+      {isPro && subTab === "recipes" && inStock.length < 3 && (
         <Empty
           title="Liiga vähe teadaolevat kraami"
           hint={`Äpp näeb praegu ${inStock.length} toodet, mis peaks kodus olema. Lisa paar tšekki — kui midagi on ostetud ammu, arvab äpp, et see on juba otsas, ja jätab retseptidest välja.`}
         />
       )}
 
-      {subTab === "recipes" && inStock.length >= 3 && (
+      {isPro && subTab === "recipes" && inStock.length >= 3 && (
         <>
       <Panel style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 15, lineHeight: 1.55, marginBottom: 14 }}>
@@ -4198,6 +4610,47 @@ function RecipesView({ data, save, products, plan, onOpenAccount }) {
             })
           }
           onClose={() => setOpen(null)}
+        />
+      )}
+
+      {openMine && myRecipes.find((r) => r.id === openMine) && (
+        <MyRecipeSheet
+          r={myRecipes.find((r) => r.id === openMine)}
+          data={data}
+          save={save}
+          classify={classify}
+          household={household}
+          onEdit={(r) => {
+            setOpenMine(null);
+            setEditing(r);
+          }}
+          onClose={() => setOpenMine(null)}
+        />
+      )}
+
+      {editing && (
+        <MyRecipeEditor
+          recipe={editing}
+          household={household}
+          productNames={products.filter((p) => !p.bag).map((p) => p.name)}
+          onSave={(r) => {
+            const exists = myRecipes.some((x) => x.id === r.id);
+            save({
+              ...data,
+              myRecipes: exists ? myRecipes.map((x) => (x.id === r.id ? r : x)) : [...myRecipes, r],
+            });
+            setEditing(null);
+            setOpenMine(r.id);
+          }}
+          onDelete={
+            editing.id
+              ? () => {
+                  save({ ...data, myRecipes: myRecipes.filter((x) => x.id !== editing.id) });
+                  setEditing(null);
+                }
+              : null
+          }
+          onClose={() => setEditing(null)}
         />
       )}
     </div>

@@ -51,7 +51,8 @@
     hidden: {},
     cart: {},
     settings: { mode: "daily", days: [], household: 2, store: "" },
-    mealPlan: {}
+    mealPlan: {},
+    myRecipes: []
   };
   const CATEGORY_ORDER = [
     "Puu- ja k\xF6\xF6givili",
@@ -138,6 +139,34 @@
     d.setDate(d.getDate() - n);
     return localISO(d);
   };
+  const UNITS = ["g", "kg", "ml", "l", "tk", "pakk", "spl", "tl"];
+  const UNIT_BASE = { kg: ["g", 1e3], l: ["ml", 1e3] };
+  const toBase = (a) => UNIT_BASE[a.unit] ? { qty: a.qty * UNIT_BASE[a.unit][1], unit: UNIT_BASE[a.unit][0] } : { ...a };
+  const parseQty = (v) => Number(String(v ?? "").replace(",", ".")) || 0;
+  const roundQty = (qty, unit) => {
+    if (unit === "tk" || unit === "pakk") return Math.max(1, Math.ceil(qty - 1e-9));
+    if (unit === "g" || unit === "ml")
+      return qty < 10 ? Math.max(1, Math.round(qty)) : qty < 100 ? Math.round(qty / 5) * 5 : Math.round(qty / 10) * 10;
+    if (unit === "spl" || unit === "tl") return Math.max(0.5, Math.round(qty * 2) / 2);
+    return Math.max(0.05, Math.round(qty * 100) / 100);
+  };
+  const fmtNum = (n) => String(Math.round(n * 100) / 100).replace(".", ",");
+  const fmtAmount = (a) => {
+    const b = toBase(a);
+    if (b.unit === "g" && b.qty >= 1e3) return `${fmtNum(b.qty / 1e3)} kg`;
+    if (b.unit === "ml" && b.qty >= 1e3) return `${fmtNum(b.qty / 1e3)} l`;
+    return `${fmtNum(b.qty)} ${b.unit}`;
+  };
+  const fmtAmounts = (list) => (list || []).map(fmtAmount).join(" + ");
+  const mergeAmounts = (list, add) => {
+    const out = (list || []).map((a) => ({ ...a }));
+    const b = toBase(add);
+    const hit = out.find((a) => a.unit === b.unit);
+    if (hit) hit.qty += b.qty;
+    else out.push(b);
+    return out;
+  };
+  const scaleAmount = (item, factor) => parseQty(item.qty) > 0 ? { qty: roundQty(parseQty(item.qty) * factor, item.unit), unit: item.unit } : null;
   const relDays = (n) => n === 0 ? "t\xE4na" : n === 1 ? "eile" : `${n} p\xE4eva tagasi`;
   function buildProducts(data) {
     const map = /* @__PURE__ */ new Map();
@@ -1496,16 +1525,23 @@ ${xref}
             }
           },
           "+"
-        ), /* @__PURE__ */ React.createElement(
+        ), /* @__PURE__ */ React.createElement("span", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement(
           "span",
           {
             style: {
+              display: "block",
               fontSize: 15.5,
               textDecoration: inCart ? "line-through" : "none"
             }
           },
           e.name
-        )),
+        ), (e.amounts?.length > 0 || e.from?.length > 0) && /* @__PURE__ */ React.createElement(
+          "span",
+          {
+            style: { display: "block", fontSize: 12.5, color: T.faint, marginTop: 2, ...num }
+          },
+          [fmtAmounts(e.amounts), (e.from || []).join(", ")].filter(Boolean).join(" \xB7 ")
+        ))),
         /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexShrink: 0, alignItems: "center" } }, inCart && /* @__PURE__ */ React.createElement(
           QtyStepper,
           {
@@ -3045,7 +3081,7 @@ ${xref}
       ],
       [
         "Retseptid ja N\xE4dalaplaan",
-        "\u201ERetseptid\u201C pakub AI abiga roogi just sellest, mis kodus arvatavasti juba on. \u201EN\xE4dalaplaan\u201C aitab kogu n\xE4dala men\xFC\xFC ette planeerida \u2014 iga p\xE4eva jaoks kas m\xF5ni pakutud retsept v\xF5i ise kirjutatud toit. M\xF5lemad kuuluvad Pro paketi alla."
+        "\u201EMinu retseptid\u201C all saad kirja panna oma pere road koos kogustega. Retsepti avades vali, mitmele inimesele teed, ja \xE4pp arvutab kogused \xFCmber ning lisab puuduvad tooted ostunimekirja. See on k\xF5igile tasuta. \u201ERetseptisoovitused\u201C pakub AI abiga roogi sellest, mis kodus arvatavasti juba on, ja \u201EN\xE4dalaplaan\u201C aitab kogu n\xE4dala men\xFC\xFC ette planeerida. Need kaks kuuluvad Pro paketi alla."
       ],
       [
         "Kulud",
@@ -3150,6 +3186,10 @@ ${xref}
         label: "Retseptid, N\xE4dalaplaan ja Pro pakett",
         items: [
           [
+            "Kuidas oma retsepti teha ja tooted nimekirja saada?",
+            "Ava Retseptid \u2192 \u201EMinu retseptid\u201C \u2192 \u201ELoo retsept\u201C. Kirjuta roa nimi, mitmele inimesele retsept on ning koostisosad koguse ja \xFChikuga. Retsepti avades vali \u201ETeen \u2026 inimesele\u201C, m\xE4rgi tooted, mida on vaja osta, ja vajuta \u201ELisa nimekirja\u201C. Nimekirjas on n\xE4ha kogus ja mis roa jaoks toode on. Kui sama toode on juba nimekirjas, liidetakse kogused kokku. Oma retseptid on tasuta."
+          ],
+          [
             "Mis vahe on Retseptidel ja N\xE4dalaplaanil?",
             "\u201ERetseptid\u201C pakub kohe AI roogi sellest, mida kodus arvatavasti on. \u201EN\xE4dalaplaan\u201C aitab kogu n\xE4dala peale ette m\xF5elda \u2014 iga p\xE4eva jaoks saab valida kas m\xF5ne pakutud retsepti v\xF5i kirjutada ise, mida s\xFC\xFCa."
           ],
@@ -3223,30 +3263,258 @@ ${xref}
       );
     })))), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onClose }, "Sulge"));
   }
+  function MyRecipesList({ recipes, onNew, onOpen }) {
+    if (!recipes.length)
+      return /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 17, fontWeight: 600, marginBottom: 6 } }, "Teie pere road"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: T.faint, lineHeight: 1.55, marginBottom: 16 } }, "Kirjuta \xFCles road, mida teete tihti. Retsepti avades valid, mitmele inimesele s\xFC\xFCa teed. \xC4pp arvutab kogused \xFCmber ja lisab puuduvad tooted ostunimekirja."), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onNew }, "Loo retsept"));
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onNew, style: { marginBottom: 12 } }, "Loo retsept"), recipes.map((r) => /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        key: r.id,
+        onClick: () => onOpen(r),
+        style: {
+          background: T.surface,
+          borderRadius: 14,
+          padding: "15px 16px",
+          marginBottom: 7,
+          cursor: "pointer"
+        }
+      },
+      /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16.5, letterSpacing: "-0.01em" } }, r.name),
+      /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, marginTop: 4, ...num } }, r.serves, " inimesele \xB7 ", r.items.length, " koostisosa")
+    )));
+  }
+  function MyRecipeEditor({ recipe, household, productNames, onSave, onDelete, onClose }) {
+    const blankItem = () => ({ id: uid(), name: "", qty: "", unit: "g" });
+    const [name, setName] = useState(recipe.name || "");
+    const [serves, setServes] = useState(recipe.serves || household);
+    const [items, setItems] = useState(
+      recipe.items?.length ? recipe.items.map((i) => ({ ...i, id: uid(), qty: i.qty ? fmtNum(i.qty) : "" })) : [blankItem(), blankItem(), blankItem()]
+    );
+    const [stepsText, setStepsText] = useState((recipe.steps || []).join("\n"));
+    const [error, setError] = useState("");
+    const update = (id, patch) => setItems(items.map((i) => i.id === id ? { ...i, ...patch } : i));
+    const submit = () => {
+      const clean = items.filter((i) => i.name.trim()).map((i) => ({ name: i.name.trim(), qty: parseQty(i.qty), unit: i.unit }));
+      if (!name.trim()) return setError("Anna retseptile nimi.");
+      if (!clean.length) return setError("Lisa v\xE4hemalt \xFCks koostisosa.");
+      onSave({
+        id: recipe.id || uid(),
+        name: name.trim(),
+        serves,
+        items: clean,
+        steps: stepsText.split("\n").map((x) => x.trim()).filter(Boolean),
+        createdAt: recipe.createdAt || today()
+      });
+    };
+    return /* @__PURE__ */ React.createElement(Sheet, { onClose, z: 65 }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 21, letterSpacing: "-0.015em", marginBottom: 16 } }, recipe.id ? "Muuda retsepti" : "Uus retsept"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        id: "nm-recipe-name",
+        value: name,
+        onChange: (e) => setName(e.target.value),
+        placeholder: "Roa nimi, nt Hakklihakaste",
+        style: field({ width: "100%", marginBottom: 12, background: T.surface, boxSizing: "border-box" })
+      }
+    ), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15 } }, "Mitmele inimesele"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: T.faint, marginTop: 2 } }, "Kogused on selle arvu jaoks")), /* @__PURE__ */ React.createElement(QtyStepper, { value: serves, onChange: setServes, min: 1, max: 20 })), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: 8 } }, "Koostisosad"), /* @__PURE__ */ React.createElement("datalist", { id: "nm-product-names" }, productNames.map((n) => /* @__PURE__ */ React.createElement("option", { key: n, value: n }))), items.map((i, idx) => /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        key: i.id,
+        style: {
+          display: "flex",
+          gap: 6,
+          alignItems: "center",
+          padding: "7px 0",
+          borderTop: idx === 0 ? "none" : `1px solid ${T.hair}`
+        }
+      },
+      /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          id: `nm-ing-name-${i.id}`,
+          value: i.name,
+          onChange: (e) => update(i.id, { name: e.target.value }),
+          placeholder: "Toode",
+          list: "nm-product-names",
+          style: field({ flex: "1 1 auto", minWidth: 0, padding: "10px 11px", fontSize: 14.5 })
+        }
+      ),
+      /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          id: `nm-ing-qty-${i.id}`,
+          value: i.qty,
+          onChange: (e) => update(i.id, { qty: e.target.value }),
+          placeholder: "Kogus",
+          inputMode: "decimal",
+          style: field({ width: 64, flexShrink: 0, padding: "10px 9px", fontSize: 14.5, textAlign: "right", ...num })
+        }
+      ),
+      /* @__PURE__ */ React.createElement(
+        "select",
+        {
+          id: `nm-ing-unit-${i.id}`,
+          value: i.unit,
+          onChange: (e) => update(i.id, { unit: e.target.value }),
+          style: field({ width: 66, flexShrink: 0, padding: "10px 8px", fontSize: 14.5 })
+        },
+        UNITS.map((u) => /* @__PURE__ */ React.createElement("option", { key: u, value: u }, u))
+      ),
+      /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          "aria-label": "Eemalda koostisosa",
+          onClick: () => setItems(items.length > 1 ? items.filter((x) => x.id !== i.id) : [blankItem()]),
+          style: {
+            border: "none",
+            background: "transparent",
+            color: T.faint,
+            fontSize: 18,
+            cursor: "pointer",
+            padding: "4px 2px",
+            flexShrink: 0
+          }
+        },
+        "\xD7"
+      )
+    )), /* @__PURE__ */ React.createElement(Btn, { kind: "quiet", full: true, style: { marginTop: 8 }, onClick: () => setItems([...items, blankItem()]) }, "+ Lisa koostisosa"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: T.faint, lineHeight: 1.5, marginTop: 10 } }, "Kogus v\xF5ib j\xE4\xE4da t\xFChjaks (nt sool maitse j\xE4rgi). Kasuta toote nime nagu t\u0161ekil, siis teab \xE4pp, kas see on kodus olemas.")), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: 8 } }, "Valmistamine (soovi korral)"), /* @__PURE__ */ React.createElement(
+      "textarea",
+      {
+        id: "nm-recipe-steps",
+        value: stepsText,
+        onChange: (e) => setStepsText(e.target.value),
+        placeholder: "Iga samm eraldi reale, nt\nPruunista hakkliha\nLisa sibul ja hauta 10 min",
+        rows: 4,
+        style: field({ width: "100%", boxSizing: "border-box", resize: "vertical", lineHeight: 1.5 })
+      }
+    )), error && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13.5, color: T.out, marginBottom: 10 } }, error), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Btn, { kind: "solid", style: { flex: 1 }, onClick: submit }, "Salvesta retsept"), /* @__PURE__ */ React.createElement(Btn, { onClick: onClose }, "Loobu")), onDelete && /* @__PURE__ */ React.createElement(ConfirmBtn, { label: "Kustuta retsept", confirmLabel: "Vajuta uuesti \u2014 kustutan", onConfirm: onDelete }));
+  }
+  function MyRecipeSheet({ r, data, save, classify, household, onEdit, onClose }) {
+    const [people, setPeople] = useState(household);
+    const factor = people / (r.serves || 1);
+    const inList = (n) => data.extras.some((e) => key(e.name) === key(n));
+    const [picked, setPicked] = useState(
+      () => r.items.map((i) => classify(i.name) === "missing" && !inList(i.name))
+    );
+    const [added, setAdded] = useState(0);
+    const STATE = {
+      have: { color: T.fresh, label: "kodus olemas" },
+      staple: { color: T.soon, label: "eeldan et on olemas" },
+      missing: { color: T.soon, label: "vaja osta" }
+    };
+    const count = picked.filter(Boolean).length;
+    const addToList = () => {
+      let extras = [...data.extras];
+      r.items.forEach((i, idx) => {
+        if (!picked[idx]) return;
+        const amount = scaleAmount(i, factor);
+        const at = extras.findIndex((e) => key(e.name) === key(i.name));
+        if (at === -1) {
+          extras.push({ id: uid(), name: i.name, amounts: amount ? [toBase(amount)] : [], from: [r.name] });
+        } else {
+          const e = extras[at];
+          extras[at] = {
+            ...e,
+            amounts: amount ? mergeAmounts(e.amounts, amount) : e.amounts || [],
+            from: [.../* @__PURE__ */ new Set([...e.from || [], r.name])]
+          };
+        }
+      });
+      save({ ...data, extras });
+      setAdded(count);
+      setPicked(picked.map(() => false));
+    };
+    return /* @__PURE__ */ React.createElement(Sheet, { onClose, z: 60 }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, letterSpacing: "-0.02em", marginBottom: 4 } }, r.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13.5, color: T.faint, marginBottom: 14 } }, "Retsept on kirjutatud ", r.serves, " inimesele"), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15 } }, "Teen"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ React.createElement(QtyStepper, { value: people, onChange: (n) => (setPeople(n), setAdded(0)), min: 1, max: 20 }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 15 } }, "inimesele"))), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: 6 } }, "Koostisosad ", people, " inimesele"), r.items.map((i, idx) => {
+      const state = classify(i.name);
+      const st = STATE[state];
+      const listed = inList(i.name);
+      const amount = scaleAmount(i, factor);
+      return /* @__PURE__ */ React.createElement(
+        "label",
+        {
+          key: idx,
+          htmlFor: `nm-pick-${r.id}-${idx}`,
+          style: {
+            display: "flex",
+            alignItems: "center",
+            gap: 11,
+            padding: "11px 0",
+            borderTop: idx === 0 ? "none" : `1px solid ${T.hair}`,
+            cursor: "pointer"
+          }
+        },
+        /* @__PURE__ */ React.createElement(
+          "input",
+          {
+            id: `nm-pick-${r.id}-${idx}`,
+            type: "checkbox",
+            checked: !!picked[idx],
+            onChange: (e) => {
+              setPicked(picked.map((v, j) => j === idx ? e.target.checked : v));
+              setAdded(0);
+            },
+            style: { width: 20, height: 20, accentColor: T.gold, flexShrink: 0, margin: 0 }
+          }
+        ),
+        /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15 } }, i.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: listed ? T.fresh : st.color, marginTop: 2 } }, listed ? "nimekirjas" : st.label)),
+        /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14, color: T.soft, whiteSpace: "nowrap", ...num } }, amount ? fmtAmount(amount) : "maitse j\xE4rgi")
+      );
+    }), /* @__PURE__ */ React.createElement(
+      Btn,
+      {
+        kind: count ? "solid" : "quiet",
+        full: true,
+        style: { marginTop: 12, opacity: count ? 1 : 0.6 },
+        onClick: () => count && addToList()
+      },
+      count ? `Lisa ${count} ${count === 1 ? "toode" : "toodet"} nimekirja` : added ? `${added} ${added === 1 ? "toode" : "toodet"} lisatud nimekirja \u2713` : "M\xE4rgi tooted, mida on vaja osta"
+    )), r.steps?.length > 0 && /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, null, "Valmistamine"), r.steps.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", gap: 12, padding: "9px 0" } }, /* @__PURE__ */ React.createElement(
+      "span",
+      {
+        style: {
+          width: 22,
+          height: 22,
+          borderRadius: 11,
+          background: tint(T.gold, 0.15),
+          color: T.gold,
+          fontSize: 12.5,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          marginTop: 1
+        }
+      },
+      i + 1
+    ), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14.5, lineHeight: 1.6 } }, s)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { style: { flex: 1 }, onClick: () => onEdit(r) }, "Muuda retsepti"), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", style: { flex: 1 }, onClick: onClose }, "Sulge")));
+  }
   function RecipesView({ data, save, products, plan, onOpenAccount }) {
+    const isPro = plan === "pro";
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const [open, setOpen] = useState(null);
-    const [subTab, setSubTab] = useState("recipes");
-    if (plan !== "pro")
-      return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px 16px" } }, /* @__PURE__ */ React.createElement(Panel, { style: { padding: "26px 20px", textAlign: "center" } }, /* @__PURE__ */ React.createElement(
-        "div",
-        {
-          style: {
-            width: 52,
-            height: 52,
-            borderRadius: 26,
-            background: tint(T.gold, 0.14),
-            color: T.gold,
-            fontSize: 24,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            margin: "0 auto 14px"
-          }
-        },
-        "\u2728"
-      ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 600, marginBottom: 8 } }, "Retseptid on Pro pakett"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: T.faint, lineHeight: 1.55, marginBottom: 18 } }, "AI paneb kokku toidusoovitused just sellest, mis teil kodus juba olemas on \u2014 ilma et peaksite ise m\xF5tlema, mida s\xFC\xFCa teha. Sisaldub Pro paketis koos tulevaste s\xF6\xF6gikorra-planeerimise t\xF6\xF6riistadega."), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onOpenAccount }, "Vaata Pro paketti")));
+    const [subTab, setSubTab] = useState(isPro ? "recipes" : "mine");
+    const [openMine, setOpenMine] = useState(null);
+    const [editing, setEditing] = useState(null);
+    const myRecipes = data.myRecipes || [];
+    const proLock = /* @__PURE__ */ React.createElement(Panel, { style: { padding: "26px 20px", textAlign: "center" } }, /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        style: {
+          width: 52,
+          height: 52,
+          borderRadius: 26,
+          background: tint(T.gold, 0.14),
+          color: T.gold,
+          fontSize: 24,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          margin: "0 auto 14px"
+        }
+      },
+      "\u2728"
+    ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 600, marginBottom: 8 } }, subTab === "plan" ? "N\xE4dalaplaan on Pro paketis" : "Retseptisoovitused on Pro paketis"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: T.faint, lineHeight: 1.55, marginBottom: 18 } }, "AI paneb kokku toidusoovitused just sellest, mis teil kodus juba olemas on, ja N\xE4dalaplaaniga saad n\xE4dala toidud ette \xE4ra planeerida. Oma retseptid on k\xF5igile tasuta."), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onOpenAccount }, "Vaata Pro paketti"));
     const household = data.settings?.household || 2;
     const inStock = products.filter((p) => !p.hidden && !p.bag && p.progress < 1).sort((a, b) => a.progress - b.progress).slice(0, 30);
     const stored = data.recipes;
@@ -3279,13 +3547,21 @@ ${xref}
       background: on ? tint(T.gold, 0.16) : T.raised,
       color: on ? T.gold : T.soft
     });
-    return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("recipes"), style: subTabChip(subTab === "recipes") }, "Retseptisoovitused"), /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("plan"), style: subTabChip(subTab === "plan") }, "N\xE4dalaplaan")), subTab === "plan" && /* @__PURE__ */ React.createElement(MealPlanner, { data, save, recipes: stored?.list || [], onOpenRecipe: setOpen }), subTab === "recipes" && inStock.length < 3 && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("mine"), style: subTabChip(subTab === "mine") }, "Minu retseptid"), /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("recipes"), style: subTabChip(subTab === "recipes") }, "Retseptisoovitused"), /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("plan"), style: subTabChip(subTab === "plan") }, "N\xE4dalaplaan")), subTab === "mine" && /* @__PURE__ */ React.createElement(MyRecipesList, { recipes: myRecipes, onNew: () => setEditing({}), onOpen: (r) => setOpenMine(r.id) }), !isPro && subTab !== "mine" && proLock, isPro && subTab === "plan" && /* @__PURE__ */ React.createElement(
+      MealPlanner,
+      {
+        data,
+        save,
+        recipes: [...stored?.list || [], ...myRecipes.map((r) => ({ ...r, mine: true }))],
+        onOpenRecipe: (r) => r.mine ? setOpenMine(r.id) : setOpen(r)
+      }
+    ), isPro && subTab === "recipes" && inStock.length < 3 && /* @__PURE__ */ React.createElement(
       Empty,
       {
         title: "Liiga v\xE4he teadaolevat kraami",
         hint: `\xC4pp n\xE4eb praegu ${inStock.length} toodet, mis peaks kodus olema. Lisa paar t\u0161ekki \u2014 kui midagi on ostetud ammu, arvab \xE4pp, et see on juba otsas, ja j\xE4tab retseptidest v\xE4lja.`
       }
-    ), subTab === "recipes" && inStock.length >= 3 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, lineHeight: 1.55, marginBottom: 14 } }, "Kodus peaks praegu olema ", inStock.length, " toodet. Pakun neist rooga", " ", household, " inimesele."), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: generate }, busy ? "M\xF5tlen\u2026" : stored ? "Paku uued road" : "Paku roogi")), error && /* @__PURE__ */ React.createElement(
+    ), isPro && subTab === "recipes" && inStock.length >= 3 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, lineHeight: 1.55, marginBottom: 14 } }, "Kodus peaks praegu olema ", inStock.length, " toodet. Pakun neist rooga", " ", household, " inimesele."), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: generate }, busy ? "M\xF5tlen\u2026" : stored ? "Paku uued road" : "Paku roogi")), error && /* @__PURE__ */ React.createElement(
       "div",
       {
         style: {
@@ -3377,6 +3653,41 @@ ${xref}
           }
         }),
         onClose: () => setOpen(null)
+      }
+    ), openMine && myRecipes.find((r) => r.id === openMine) && /* @__PURE__ */ React.createElement(
+      MyRecipeSheet,
+      {
+        r: myRecipes.find((r) => r.id === openMine),
+        data,
+        save,
+        classify,
+        household,
+        onEdit: (r) => {
+          setOpenMine(null);
+          setEditing(r);
+        },
+        onClose: () => setOpenMine(null)
+      }
+    ), editing && /* @__PURE__ */ React.createElement(
+      MyRecipeEditor,
+      {
+        recipe: editing,
+        household,
+        productNames: products.filter((p) => !p.bag).map((p) => p.name),
+        onSave: (r) => {
+          const exists = myRecipes.some((x) => x.id === r.id);
+          save({
+            ...data,
+            myRecipes: exists ? myRecipes.map((x) => x.id === r.id ? r : x) : [...myRecipes, r]
+          });
+          setEditing(null);
+          setOpenMine(r.id);
+        },
+        onDelete: editing.id ? () => {
+          save({ ...data, myRecipes: myRecipes.filter((x) => x.id !== editing.id) });
+          setEditing(null);
+        } : null,
+        onClose: () => setEditing(null)
       }
     ));
   }

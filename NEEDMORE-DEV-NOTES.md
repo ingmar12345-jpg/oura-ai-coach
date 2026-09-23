@@ -312,3 +312,23 @@ DayReceiptsSheet'i: selle päeva tšekid (pood, summa) ja iga rea kogus, ühikuh
 ja summa. Hinnangulised ostukäigud (`estimated`) on märgitud. Aken on ainult
 vaatamiseks; parandamine käib endiselt Tšekk → Salvestatud tšekid. Juhendi
 Kulud-lõiku lisati lause. CACHE -> `needmore-v15`.
+
+## 23.09.2026: Minu retseptid (tasuta)
+
+Retseptid vaates on uus alamvaade "Minu retseptid", mis on kõigile tasuta
+(AI "Retseptisoovitused" ja "Nädalaplaan" jäävad Pro paketti; vabal paketil
+näidatakse nende all Pro lukku).
+
+- Andmed: `data.myRecipes = [{id, name, serves, items:[{name, qty, unit}], steps, createdAt}]`
+  (meta/state dokumendis). Ühikud: g, kg, ml, l, tk, pakk, spl, tl; qty 0 = "maitse järgi".
+- MyRecipeEditor: nimi, mitmele inimesele (QtyStepper), koostisosad (nime
+  soovitused varem ostetud toodetest datalist'iga), sammud (üks rida = üks samm).
+- MyRecipeSheet: "Teen N inimesele" skaleerib kogused (`scaleAmount`,
+  `roundQty`: tk/pakk üles täisarvuni, g/ml 5/10 kaupa, spl/tl 0,5 kaupa).
+  Koostisosad on linnukestega; vaikimisi valitud need, mis on "vaja osta"
+  (sama `classify` nagu AI retseptidel). "Lisa N toodet nimekirja".
+- Ostunimekirja `extras` said väljad `amounts: [{qty, unit}]` (baasühikutes
+  g/ml) ja `from: [retsepti nimi]`; sama toode liidab kogused (`mergeAmounts`).
+  Nimekirjas kuvatakse nt "250 g · Hakklihakaste".
+- Oma retsepte saab valida ka Nädalaplaani (Pro).
+- Juhendi ja KKK retseptide tekstid uuendatud. CACHE -> `needmore-v16`.
