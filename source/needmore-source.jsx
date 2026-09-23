@@ -66,41 +66,11 @@ const emptyData = {
   mealPlan: {},
 };
 
-// Kaupade paiknemine poes — nimekiri järjestatakse kõndimise suunas
-const STORE_ORDER = {
-  selver: [
-    "Puu- ja köögivili", "Leib ja pagaritooted", "Liha ja kala", "Piimatooted",
-    "Külmutatud", "Kuivained ja säilivad", "Joogid", "Maiustused ja snäkid",
-    "Majapidamine", "Hügieen ja ilu", "Lemmikloom", "Muu",
-  ],
-  rimi: [
-    "Puu- ja köögivili", "Leib ja pagaritooted", "Piimatooted", "Liha ja kala",
-    "Kuivained ja säilivad", "Külmutatud", "Joogid", "Maiustused ja snäkid",
-    "Hügieen ja ilu", "Majapidamine", "Lemmikloom", "Muu",
-  ],
-  coop: [
-    "Puu- ja köögivili", "Leib ja pagaritooted", "Liha ja kala", "Piimatooted",
-    "Kuivained ja säilivad", "Joogid", "Külmutatud", "Maiustused ja snäkid",
-    "Majapidamine", "Hügieen ja ilu", "Lemmikloom", "Muu",
-  ],
-  lidl: [
-    "Puu- ja köögivili", "Leib ja pagaritooted", "Piimatooted", "Liha ja kala",
-    "Külmutatud", "Kuivained ja säilivad", "Maiustused ja snäkid", "Joogid",
-    "Majapidamine", "Hügieen ja ilu", "Lemmikloom", "Muu",
-  ],
-  maxima: [
-    "Puu- ja köögivili", "Leib ja pagaritooted", "Piimatooted", "Liha ja kala",
-    "Kuivained ja säilivad", "Külmutatud", "Joogid", "Maiustused ja snäkid",
-    "Majapidamine", "Hügieen ja ilu", "Lemmikloom", "Muu",
-  ],
-};
-
-const STORES = [
-  ["selver", "Selver"],
-  ["rimi", "Rimi"],
-  ["coop", "Coop"],
-  ["lidl", "Lidl"],
-  ["maxima", "Maxima"],
+// Kategooriate järjestus nimekirjas: tavaline poes kõndimise suund
+const CATEGORY_ORDER = [
+  "Puu- ja köögivili", "Leib ja pagaritooted", "Liha ja kala", "Piimatooted",
+  "Külmutatud", "Kuivained ja säilivad", "Joogid", "Maiustused ja snäkid",
+  "Majapidamine", "Hügieen ja ilu", "Lemmikloom", "Muu",
 ];
 
 // Kiirstardi valik, et äpp oleks kasulik enne esimest tšekki
@@ -1421,8 +1391,9 @@ function ListView({ products, data, save, onOpen }) {
   const [quickStart, setQuickStart] = useState(false);
 
   const cart = data.cart || {};
-  const store = data.settings?.store || "";
-  const order = STORE_ORDER[store];
+  // settings.store: "" = kiireloomulisuse järgi; iga muu väärtus (ka vanad poenimed) = kategooriate järgi
+  const byCategory = !!data.settings?.store;
+  const order = byCategory ? CATEGORY_ORDER : null;
 
   const needed = products.filter((p) => !p.hidden && p.progress >= 0.7);
   const watching = products.filter(
@@ -1566,10 +1537,11 @@ function ListView({ products, data, save, onOpen }) {
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
     .slice(0, 8);
 
-  // Poe järjekorras rühmitamine
+  // Kategooriate kaupa rühmitamine; tundmatu kategooria läheb "Muu" alla, et toode ei kaoks
+  const catOf = (p) => (CATEGORY_ORDER.includes(p.category) ? p.category : "Muu");
   const groups = order
     ? order
-        .map((cat) => [cat, needed.filter((p) => p.category === cat)])
+        .map((cat) => [cat, needed.filter((p) => catOf(p) === cat)])
         .filter(([, items]) => items.length)
     : [[null, needed]];
 
@@ -1709,32 +1681,18 @@ function ListView({ products, data, save, onOpen }) {
         </Panel>
       )}
 
-      {/* Poe valik — see JÄRJESTAB nimekirja tootekategooriaid vastavalt poe
-          riiulite tavapärasele paigutusele. See EI FILTREERI oste selle poe järgi
-          (kulustatistikas nähtav "pood" tuleb tšekile märgitud/loetud poe nimest). */}
       <div style={{ fontSize: 11.5, color: T.faint, marginBottom: 6, letterSpacing: ".02em" }}>
-        Järjesta nimekiri riiulite järgi
+        Järjesta nimekiri
       </div>
-      <div
-        style={{
-          display: "flex",
-          gap: 6,
-          marginBottom: 14,
-          overflowX: "auto",
-          paddingBottom: 2,
-        }}
-      >
-        <button
-          onClick={() => save({ ...data, settings: { ...data.settings, store: "" } })}
-          style={storeChip(!store)}
-        >
-          Kiireloomulisuse järgi
-        </button>
-        {STORES.map(([id, label]) => (
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+        {[
+          ["", "Kiireloomulisuse järgi"],
+          ["category", "Kategooriate järgi"],
+        ].map(([id, label]) => (
           <button
-            key={id}
+            key={label}
             onClick={() => save({ ...data, settings: { ...data.settings, store: id } })}
-            style={storeChip(store === id)}
+            style={storeChip(id ? byCategory : !byCategory)}
           >
             {label}
           </button>

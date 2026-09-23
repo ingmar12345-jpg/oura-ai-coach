@@ -289,3 +289,12 @@ Nimekirja all olev "Jälgin veel" (tooted progressiga 0.35–0.7) nimetati
 "jätkub veel ~N päeva" ja õhuke progressiriba põhinimekirja värvidega.
 KKK "Nimekiri ja ennustus" alla lisati küsimus selle kohta.
 CACHE -> `needmore-v12`.
+
+## 23.09.2026: nimekirja järjestus
+
+"Järjesta nimekiri riiulite järgi" poenupud (Selver, Rimi, Coop, Lidl,
+Maxima) asendati kahe valikuga: "Kiireloomulisuse järgi" ja "Kategooriate
+järgi". STORE_ORDER/STORES eemaldati, alles on üks CATEGORY_ORDER (poes
+kõndimise suund). Seade on endiselt `settings.store`: "" = kiireloomulisus,
+iga muu väärtus (ka vanad poenimed) = kategooriad. Tundmatu kategooriaga
+toode läheb rühma "Muu". CACHE -> `needmore-v13`.

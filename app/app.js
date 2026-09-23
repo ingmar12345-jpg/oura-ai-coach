@@ -53,84 +53,19 @@
     settings: { mode: "daily", days: [], household: 2, store: "" },
     mealPlan: {}
   };
-  const STORE_ORDER = {
-    selver: [
-      "Puu- ja k\xF6\xF6givili",
-      "Leib ja pagaritooted",
-      "Liha ja kala",
-      "Piimatooted",
-      "K\xFClmutatud",
-      "Kuivained ja s\xE4ilivad",
-      "Joogid",
-      "Maiustused ja sn\xE4kid",
-      "Majapidamine",
-      "H\xFCgieen ja ilu",
-      "Lemmikloom",
-      "Muu"
-    ],
-    rimi: [
-      "Puu- ja k\xF6\xF6givili",
-      "Leib ja pagaritooted",
-      "Piimatooted",
-      "Liha ja kala",
-      "Kuivained ja s\xE4ilivad",
-      "K\xFClmutatud",
-      "Joogid",
-      "Maiustused ja sn\xE4kid",
-      "H\xFCgieen ja ilu",
-      "Majapidamine",
-      "Lemmikloom",
-      "Muu"
-    ],
-    coop: [
-      "Puu- ja k\xF6\xF6givili",
-      "Leib ja pagaritooted",
-      "Liha ja kala",
-      "Piimatooted",
-      "Kuivained ja s\xE4ilivad",
-      "Joogid",
-      "K\xFClmutatud",
-      "Maiustused ja sn\xE4kid",
-      "Majapidamine",
-      "H\xFCgieen ja ilu",
-      "Lemmikloom",
-      "Muu"
-    ],
-    lidl: [
-      "Puu- ja k\xF6\xF6givili",
-      "Leib ja pagaritooted",
-      "Piimatooted",
-      "Liha ja kala",
-      "K\xFClmutatud",
-      "Kuivained ja s\xE4ilivad",
-      "Maiustused ja sn\xE4kid",
-      "Joogid",
-      "Majapidamine",
-      "H\xFCgieen ja ilu",
-      "Lemmikloom",
-      "Muu"
-    ],
-    maxima: [
-      "Puu- ja k\xF6\xF6givili",
-      "Leib ja pagaritooted",
-      "Piimatooted",
-      "Liha ja kala",
-      "Kuivained ja s\xE4ilivad",
-      "K\xFClmutatud",
-      "Joogid",
-      "Maiustused ja sn\xE4kid",
-      "Majapidamine",
-      "H\xFCgieen ja ilu",
-      "Lemmikloom",
-      "Muu"
-    ]
-  };
-  const STORES = [
-    ["selver", "Selver"],
-    ["rimi", "Rimi"],
-    ["coop", "Coop"],
-    ["lidl", "Lidl"],
-    ["maxima", "Maxima"]
+  const CATEGORY_ORDER = [
+    "Puu- ja k\xF6\xF6givili",
+    "Leib ja pagaritooted",
+    "Liha ja kala",
+    "Piimatooted",
+    "K\xFClmutatud",
+    "Kuivained ja s\xE4ilivad",
+    "Joogid",
+    "Maiustused ja sn\xE4kid",
+    "Majapidamine",
+    "H\xFCgieen ja ilu",
+    "Lemmikloom",
+    "Muu"
   ];
   const COMMON = [
     ["Piim", "Piimatooted"],
@@ -1290,8 +1225,8 @@ ${xref}
     const [noticeTone, setNoticeTone] = useState(T.soon);
     const [quickStart, setQuickStart] = useState(false);
     const cart = data.cart || {};
-    const store = data.settings?.store || "";
-    const order = STORE_ORDER[store];
+    const byCategory = !!data.settings?.store;
+    const order = byCategory ? CATEGORY_ORDER : null;
     const needed = products.filter((p) => !p.hidden && p.progress >= 0.7);
     const watching = products.filter(
       (p) => !p.hidden && p.progress >= 0.35 && p.progress < 0.7
@@ -1401,7 +1336,8 @@ ${xref}
     const suggestions = products.filter(
       (x) => (!q || x.name.toLowerCase().includes(q)) && !data.extras.some((e) => key(e.name) === x.k) && !needed.some((nd) => nd.k === x.k)
     ).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)).slice(0, 8);
-    const groups = order ? order.map((cat) => [cat, needed.filter((p) => p.category === cat)]).filter(([, items]) => items.length) : [[null, needed]];
+    const catOf = (p) => CATEGORY_ORDER.includes(p.category) ? p.category : "Muu";
+    const groups = order ? order.map((cat) => [cat, needed.filter((p) => catOf(p) === cat)]).filter(([, items]) => items.length) : [[null, needed]];
     const renderRow = (p) => {
       const inCart = !!cart[p.k];
       return /* @__PURE__ */ React.createElement("div", { key: p.k, style: { opacity: inCart ? 0.55 : 1 } }, /* @__PURE__ */ React.createElement(GaugeRow, { p, onClick: () => onOpen(p), muted: inCart }, /* @__PURE__ */ React.createElement(
@@ -1515,35 +1451,18 @@ ${xref}
         }
       },
       "Peida"
-    )), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: T.faint, marginBottom: 6, letterSpacing: ".02em" } }, "J\xE4rjesta nimekiri riiulite j\xE4rgi"), /* @__PURE__ */ React.createElement(
-      "div",
+    )), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: T.faint, marginBottom: 6, letterSpacing: ".02em" } }, "J\xE4rjesta nimekiri"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" } }, [
+      ["", "Kiireloomulisuse j\xE4rgi"],
+      ["category", "Kategooriate j\xE4rgi"]
+    ].map(([id, label]) => /* @__PURE__ */ React.createElement(
+      "button",
       {
-        style: {
-          display: "flex",
-          gap: 6,
-          marginBottom: 14,
-          overflowX: "auto",
-          paddingBottom: 2
-        }
+        key: label,
+        onClick: () => save({ ...data, settings: { ...data.settings, store: id } }),
+        style: storeChip(id ? byCategory : !byCategory)
       },
-      /* @__PURE__ */ React.createElement(
-        "button",
-        {
-          onClick: () => save({ ...data, settings: { ...data.settings, store: "" } }),
-          style: storeChip(!store)
-        },
-        "Kiireloomulisuse j\xE4rgi"
-      ),
-      STORES.map(([id, label]) => /* @__PURE__ */ React.createElement(
-        "button",
-        {
-          key: id,
-          onClick: () => save({ ...data, settings: { ...data.settings, store: id } }),
-          style: storeChip(store === id)
-        },
-        label
-      ))
-    ), data.extras.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 22 } }, data.extras.map((e) => {
+      label
+    ))), data.extras.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 22 } }, data.extras.map((e) => {
       const inCart = !!cart[key(e.name)];
       return /* @__PURE__ */ React.createElement(
         "div",
