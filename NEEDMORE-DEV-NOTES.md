@@ -298,3 +298,9 @@ järgi". STORE_ORDER/STORES eemaldati, alles on üks CATEGORY_ORDER (poes
 kõndimise suund). Seade on endiselt `settings.store`: "" = kiireloomulisus,
 iga muu väärtus (ka vanad poenimed) = kategooriad. Tundmatu kategooriaga
 toode läheb rühma "Muu". CACHE -> `needmore-v13`.
+
+## 23.09.2026: Seaded
+
+Seadetest eemaldati "Tavalised tooted" paneel: see avas sama
+QuickStartSheet'i, mis on alati nimekirja all ("Vali tavalised tooted" tühja
+nimekirja puhul, muidu "Lisa veel tavalisi tooteid"). CACHE -> `needmore-v14`.

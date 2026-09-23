@@ -3604,7 +3604,6 @@ ${xref}
   function SettingsSheet({ data, save, onClose, household, onLeaveHousehold }) {
     const s = data.settings || { mode: "daily", days: [] };
     const [msg, setMsg] = useState("");
-    const [quickStart, setQuickStart] = useState(false);
     const [confirmLeave, setConfirmLeave] = useState(false);
     const [pendingRestore, setPendingRestore] = useState(null);
     const shop = nextShop(s);
@@ -3731,7 +3730,7 @@ ${xref}
         },
         n === 6 ? "6+" : n
       );
-    })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, marginTop: 12, lineHeight: 1.55 } }, "Retseptide kogused arvutatakse selle j\xE4rgi.")), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, null, "Tavalised tooted"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, marginBottom: 12, lineHeight: 1.55 } }, "Vali kiirelt tooteid, mida teie pere tavaliselt ostab \u2014 need l\xE4hevad kohe ostunimekirja."), /* @__PURE__ */ React.createElement(Btn, { style: { width: "100%" }, onClick: () => setQuickStart(true) }, "Vali tavalised tooted")), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, null, "Andmed"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { style: { flex: 1 }, onClick: exportData }, "Varunda faili"), /* @__PURE__ */ React.createElement(
+    })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, marginTop: 12, lineHeight: 1.55 } }, "Retseptide kogused arvutatakse selle j\xE4rgi.")), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, null, "Andmed"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { style: { flex: 1 }, onClick: exportData }, "Varunda faili"), /* @__PURE__ */ React.createElement(
       "label",
       {
         style: {
@@ -3785,15 +3784,7 @@ ${xref}
         },
         "Loobu"
       ), /* @__PURE__ */ React.createElement(Btn, { kind: "warn", style: { flex: 1 }, onClick: confirmRestore }, "Jah, asenda andmed"))
-    )), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onClose }, "Sulge"), quickStart && /* @__PURE__ */ React.createElement(
-      QuickStartSheet,
-      {
-        data,
-        save,
-        onClose: () => setQuickStart(false),
-        z: 80
-      }
-    ));
+    )), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onClose }, "Sulge"));
   }
   function AccountSheet({ acc, onClose }) {
     const { hasAuth, authUser, authReady, profile, profileLoaded, authError, authBusy, saveProfile, signUp, signIn, signOutUser } = acc;

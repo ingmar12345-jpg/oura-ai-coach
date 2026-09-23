@@ -4507,7 +4507,6 @@ function RecipeSheet({ r, classify, inList, onAdd, onRemove, onClose, household,
 function SettingsSheet({ data, save, onClose, household, onLeaveHousehold }) {
   const s = data.settings || { mode: "daily", days: [] };
   const [msg, setMsg] = useState("");
-  const [quickStart, setQuickStart] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [pendingRestore, setPendingRestore] = useState(null);
   const shop = nextShop(s);
@@ -4693,17 +4692,6 @@ function SettingsSheet({ data, save, onClose, household, onLeaveHousehold }) {
       </Panel>
 
       <Panel style={{ marginBottom: 10 }}>
-        <Label>Tavalised tooted</Label>
-        <div style={{ fontSize: 13, color: T.faint, marginBottom: 12, lineHeight: 1.55 }}>
-          Vali kiirelt tooteid, mida teie pere tavaliselt ostab — need lähevad kohe
-          ostunimekirja.
-        </div>
-        <Btn style={{ width: "100%" }} onClick={() => setQuickStart(true)}>
-          Vali tavalised tooted
-        </Btn>
-      </Panel>
-
-      <Panel style={{ marginBottom: 10 }}>
         <Label>Andmed</Label>
         <div style={{ display: "flex", gap: 8 }}>
           <Btn style={{ flex: 1 }} onClick={exportData}>
@@ -4778,15 +4766,6 @@ function SettingsSheet({ data, save, onClose, household, onLeaveHousehold }) {
       <Btn kind="solid" full onClick={onClose}>
         Sulge
       </Btn>
-
-      {quickStart && (
-        <QuickStartSheet
-          data={data}
-          save={save}
-          onClose={() => setQuickStart(false)}
-          z={80}
-        />
-      )}
     </Sheet>
   );
 }
