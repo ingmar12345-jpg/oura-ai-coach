@@ -257,11 +257,14 @@
       }
       const daysSince = Math.max(daysBetween(from, now), 0);
       const daysSincePurchase = Math.max(daysBetween(last.date, now), 0);
-      const progress = est > 0 ? (daysSince + lookahead) / est : 0;
+      const bag = p.k === BAG_KEY;
+      const progress = bag ? 0 : est > 0 ? (daysSince + lookahead) / est : 0;
       const status = progress >= 1 ? "otsas" : progress >= 0.7 ? "varsti" : "olemas";
       const priced = p.purchases.filter((x) => x.unitPrice > 0);
       return {
         ...p,
+        bag,
+        units: p.purchases.reduce((a, b) => a + (b.qty || 0), 0),
         est,
         progress,
         status,
@@ -434,11 +437,16 @@
     "v\xFCrts",
     "loorber"
   ];
-  const BAG_WORDS = ["kilekott", "paberkott", "ostukott", "kandekott", "riidest kott", "sussikott"];
+  const BAG_NAME = "Poekott";
+  const BAG_KEY = "poekott";
+  const BAG_WORDS = ["poekot", "kilekot", "paberkot", "ostukot", "kandekot", "riidekot", "riidest kot", "sussikot"];
+  const NOT_BAG_WORDS = ["pr\xFCgi", "toidu", "k\xFClmut", "k\xFCpset", "rull", "zip", "tolmu"];
   const isBagLine = (name) => {
-    const n = (name || "").toLowerCase();
-    return BAG_WORDS.some((w) => n.includes(w));
+    const n = key(name);
+    if (!n || NOT_BAG_WORDS.some((w) => n.includes(w))) return false;
+    return n === "kott" || n === "kotike" || BAG_WORDS.some((w) => n.includes(w));
   };
+  const asBag = (l) => isBagLine(l.name) ? { ...l, name: BAG_NAME, category: "Muu" } : l;
   const isStaple = (name) => {
     const n = (name || "").toLowerCase();
     return STAPLES.some((w) => n.includes(w));
@@ -454,18 +462,19 @@ Tagasta AINULT JSON, ilma selgituste ja koodiplokkideta, t\xE4pselt sellises kuj
 Reeglid:
 - kategooria peab olema RANGELT \xFCks j\xE4rgnevast loetelust: ${CATEGORIES.join(", ")}
 - kui sisuliselt sama toode on juba tuntud toodete seas, kasuta t\xE4pselt sama nime. Tuntud tooted: ${knownNames.slice(0, 120).join(", ") || "(pole veel)"}
-- j\xE4ta t\xE4iesti v\xE4lja: pandipakend, allahindlusread, boonuspunktid, kokku-read, ning igasugused
-  kotid/pakendid, mida pood m\xFC\xFCb ostude kaasav\xF5tmiseks (nt "Kilekott", "Ostukott", "Paberkott",
-  "Kandekott", "Riidest kott" jms) \u2014 need ei ole toit ega majapidamistarve, need on poe enda pakend
+- j\xE4ta t\xE4iesti v\xE4lja: pandipakend, allahindlusread, boonuspunktid, kokku-read
+- kotid, mida pood m\xFC\xFCb ostude kaasav\xF5tmiseks (nt "Kilekott", "Ostukott", "Paberkott",
+  "Kandekott", "Riidest kott", "\xD5huke kilekott" jms) v\xF5ta ALATI sisse nimega t\xE4pselt "${BAG_NAME}"
+  ja kategooriaga "Muu" (toidu-, pr\xFCgi- ja k\xFClmutuskotid on tavalised tooted, mitte poekotid)
 - kui kuup\xE4eva ei ole n\xE4ha, kasuta: ${today()}
 - k\xF5ik hinnad eurodes, punkt k\xFCmnendkohana
 - conf n\xE4itab, kui h\xE4sti rida loetav oli`;
     const parsed = await callAI(prompt, { images: file });
     const rawLines = Array.isArray(parsed && parsed.lines) ? parsed.lines : [];
-    const lines = rawLines.filter((l) => l && l.name && !isBagLine(l.name)).map((l) => {
+    const allLines = rawLines.filter((l) => l && l.name).map((l) => {
       const qty = Number(l.qty) || 1;
       const unitPrice = Number(l.unitPrice) || 0;
-      return {
+      return asBag({
         id: uid(),
         name: String(l.name).trim(),
         category: CATEGORIES.includes(l.category) ? l.category : "Muu",
@@ -474,7 +483,16 @@ Reeglid:
         unitPrice,
         total: Number(l.total) || unitPrice * qty,
         conf: Number(l.conf) || 0.8
-      };
+      });
+    });
+    const lines = [];
+    allLines.forEach((l) => {
+      const bag = l.name === BAG_NAME && lines.find((m) => m.name === BAG_NAME);
+      if (!bag) return lines.push(l);
+      bag.qty += l.qty;
+      bag.total = Math.round((bag.total + l.total) * 100) / 100;
+      bag.unitPrice = Math.round(bag.total / bag.qty * 100) / 100;
+      bag.conf = Math.min(bag.conf, l.conf);
     });
     return {
       store: typeof (parsed && parsed.store) === "string" ? parsed.store : "",
@@ -1363,7 +1381,7 @@ ${xref}
       }
       const known = products.find((x) => x.k === k && !x.hidden);
       save({ ...data, extras: [...data.extras, { id: uid(), name: t }] });
-      if (known) {
+      if (known && !known.bag) {
         setNoticeTone(progressColor(known.progress));
         setNotice(
           known.progress < 0.35 ? `${known.name} lisatud. Kas seda ikka vaja on? \xC4pi hinnangul peaks kodus veel j\xE4tkuma ~${known.daysLeft} p\xE4eva.` : `${known.name} lisatud \u2014 \xE4pi hinnangul j\xE4tkub veel ${known.daysLeft} p\xE4eva.`
@@ -1890,7 +1908,7 @@ ${xref}
       lines: draft.lines.map((l) => l.id === id ? { ...l, ...patch } : l)
     });
     const commit = () => {
-      const raw = draft.lines.filter((l) => l.name.trim());
+      const raw = draft.lines.filter((l) => l.name.trim()).map(asBag);
       if (!raw.length) return;
       const merged = [];
       raw.forEach((l) => {
@@ -2868,7 +2886,7 @@ ${xref}
           }
         },
         p.name
-      ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: T.faint, marginTop: 2 } }, p.count, "\xD7 \xB7 iga ", Math.round(p.est), " p\xE4eva tagant")),
+      ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: T.faint, marginTop: 2 } }, p.bag ? `${p.units} ${p.units === 1 ? "kott" : "kotti"} \xB7 ${p.count} poesk\xE4igul` : `${p.count}\xD7 \xB7 iga ${Math.round(p.est)} p\xE4eva tagant`)),
       /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14, color: T.soft, ...num } }, eur(p.spend))
     ))));
   }
@@ -2911,7 +2929,7 @@ ${xref}
         }
       },
       "Salvesta nimi"
-    )), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(
+    )), p.bag ? /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, lineHeight: 1.6 } }, "Oled ostnud kokku ", p.units, " ", p.units === 1 ? "poekoti" : "poekotti", " ", p.count, " poesk\xE4igul ja maksnud nende eest", " ", eur(p.spend), ". Viimane ost ", fmtDate(p.lastDate), ", ", relDays(p.daysSincePurchase), "."), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, marginTop: 10, lineHeight: 1.5 } }, "K\xF5ik kilekotid, paberkotid ja ostukotid liidetakse siia. Poekotti ostunimekirja ei ennustata.")) : /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(
       "div",
       {
         style: {
@@ -3238,7 +3256,7 @@ ${xref}
         "\u2728"
       ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 600, marginBottom: 8 } }, "Retseptid on Pro pakett"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: T.faint, lineHeight: 1.55, marginBottom: 18 } }, "AI paneb kokku toidusoovitused just sellest, mis teil kodus juba olemas on \u2014 ilma et peaksite ise m\xF5tlema, mida s\xFC\xFCa teha. Sisaldub Pro paketis koos tulevaste s\xF6\xF6gikorra-planeerimise t\xF6\xF6riistadega."), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onOpenAccount }, "Vaata Pro paketti")));
     const household = data.settings?.household || 2;
-    const inStock = products.filter((p) => !p.hidden && p.progress < 1).sort((a, b) => a.progress - b.progress).slice(0, 30);
+    const inStock = products.filter((p) => !p.hidden && !p.bag && p.progress < 1).sort((a, b) => a.progress - b.progress).slice(0, 30);
     const stored = data.recipes;
     const openRecipe = open ? stored?.list?.find((x) => x.id === open.id) : null;
     const generate = async () => {
@@ -3914,7 +3932,7 @@ ${xref}
       )), /* @__PURE__ */ React.createElement(Btn, { kind: "bare", full: true, style: { marginTop: 10 }, onClick: onClose }, "J\xE4tka ilma kontota"));
     const notifPrefs = profile?.notifications || { enabled: false, categories: {} };
     const plan = profile?.plan || "free";
-    return /* @__PURE__ */ React.createElement(Sheet, { onClose, z: 70 }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 21, letterSpacing: "-0.015em", marginBottom: 16 } }, "Minu konto"), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, null, "Konto"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, fontWeight: 600, marginBottom: 12 } }, authUser.email), !authUser.emailVerified && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: T.faint, lineHeight: 1.5, marginBottom: 12 } }, "Saatsime sulle kinnituskirja — palun kontrolli oma postkasti (ka r\xE4mpsposti kausta)."), /* @__PURE__ */ React.createElement(Btn, { full: true, onClick: signOutUser }, "Logi v\xE4lja")), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, null, "Teavitused"), notifPerm === "unsupported" ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, lineHeight: 1.5 } }, "See brauser ei toeta teavitusi.") : notifPerm === "denied" ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, lineHeight: 1.5 } }, "Teavitused on brauseri tasandil blokeeritud. Luba need brauseri/telefoni seadetest saidi jaoks, et siin sisse l\xFClitada.") : !notifPrefs.enabled || notifPerm !== "granted" ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13.5, color: T.faint, lineHeight: 1.5, marginBottom: 12 } }, 'Saad teada, kui m\xF5ni toode l\xE4heb "otsas" olekusse \u2014 nii ei pea ise nimekirja kontrollima k\xE4ima. T\xF6\xF6tab k\xF5ige paremini siis, kui \xE4pp on hiljuti avatud olnud.'), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: requestNotif }, "Luba teavitused")) : /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement(Sheet, { onClose, z: 70 }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 21, letterSpacing: "-0.015em", marginBottom: 16 } }, "Minu konto"), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, null, "Konto"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, fontWeight: 600, marginBottom: 12 } }, authUser.email), !authUser.emailVerified && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: T.faint, lineHeight: 1.5, marginBottom: 12 } }, "Saatsime sulle kinnituskirja \u2014 palun kontrolli oma postkasti (ka r\xE4mpsposti kausta)."), /* @__PURE__ */ React.createElement(Btn, { full: true, onClick: signOutUser }, "Logi v\xE4lja")), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, null, "Teavitused"), notifPerm === "unsupported" ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, lineHeight: 1.5 } }, "See brauser ei toeta teavitusi.") : notifPerm === "denied" ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, lineHeight: 1.5 } }, "Teavitused on brauseri tasandil blokeeritud. Luba need brauseri/telefoni seadetest saidi jaoks, et siin sisse l\xFClitada.") : !notifPrefs.enabled || notifPerm !== "granted" ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13.5, color: T.faint, lineHeight: 1.5, marginBottom: 12 } }, 'Saad teada, kui m\xF5ni toode l\xE4heb "otsas" olekusse \u2014 nii ei pea ise nimekirja kontrollima k\xE4ima. T\xF6\xF6tab k\xF5ige paremini siis, kui \xE4pp on hiljuti avatud olnud.'), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: requestNotif }, "Luba teavitused")) : /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(
       "div",
       {
         style: {
@@ -4165,7 +4183,7 @@ ${xref}
     if (code === "auth/network-request-failed") return "Interneti\xFChendus katkes.";
     if (code === "auth/operation-not-allowed" || code === "auth/configuration-not-found")
       return `Konto loomine pole veel Firebase's sisse l\xFClitatud. Ava Firebase konsool \u2192 Authentication \u2192 Sign-in method \u2192 luba "Email/Password" \u2192 Save (vt README.txt).`;
-    const detail = code || (e && e.message) || "";
+    const detail = code || e && e.message || "";
     return "Midagi l\xE4ks valesti. Proovi uuesti." + (detail ? ` (${detail})` : "");
   }
   const emptyProfile = () => ({

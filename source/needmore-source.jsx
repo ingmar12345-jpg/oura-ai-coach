@@ -243,12 +243,15 @@ function buildProducts(data) {
       const daysSince = Math.max(daysBetween(from, now), 0);
       const daysSincePurchase = Math.max(daysBetween(last.date, now), 0);
       // Otsustav pole tänane seis, vaid seis järgmisel poeskäigul
-      const progress = est > 0 ? (daysSince + lookahead) / est : 0;
+      const bag = p.k === BAG_KEY;
+      const progress = bag ? 0 : est > 0 ? (daysSince + lookahead) / est : 0;
       const status = progress >= 1 ? "otsas" : progress >= 0.7 ? "varsti" : "olemas";
       const priced = p.purchases.filter((x) => x.unitPrice > 0);
 
       return {
         ...p,
+        bag,
+        units: p.purchases.reduce((a, b) => a + (b.qty || 0), 0),
         est,
         progress,
         status,
@@ -455,13 +458,19 @@ const STAPLES = [
   "loorber",
 ];
 
-// Poe enda kotid/pakendid — need ei tohi kunagi tootena nimekirja jõuda, isegi
-// kui AI mõne rea siiski läbi laseb. Kaitseks lisaks juhendile ka siin filter.
-const BAG_WORDS = ["kilekott", "paberkott", "ostukott", "kandekott", "riidest kott", "sussikott"];
+// Poe kotid (kilekott, paberkott, ostukott…) loetakse alati üheks tooteks
+// "Poekott": neid jälgitakse kuludes ja toodetes, aga ostunimekirja ei ennustata.
+const BAG_NAME = "Poekott";
+const BAG_KEY = "poekott";
+const BAG_WORDS = ["poekot", "kilekot", "paberkot", "ostukot", "kandekot", "riidekot", "riidest kot", "sussikot"];
+// Toidu-, prügi- jm majapidamiskotid on päris tooted, mitte poe kaasavõtukotid
+const NOT_BAG_WORDS = ["prügi", "toidu", "külmut", "küpset", "rull", "zip", "tolmu"];
 const isBagLine = (name) => {
-  const n = (name || "").toLowerCase();
-  return BAG_WORDS.some((w) => n.includes(w));
+  const n = key(name);
+  if (!n || NOT_BAG_WORDS.some((w) => n.includes(w))) return false;
+  return n === "kott" || n === "kotike" || BAG_WORDS.some((w) => n.includes(w));
 };
+const asBag = (l) => (isBagLine(l.name) ? { ...l, name: BAG_NAME, category: "Muu" } : l);
 
 const isStaple = (name) => {
   const n = (name || "").toLowerCase();
@@ -479,21 +488,22 @@ Tagasta AINULT JSON, ilma selgituste ja koodiplokkideta, täpselt sellises kujus
 Reeglid:
 - kategooria peab olema RANGELT üks järgnevast loetelust: ${CATEGORIES.join(", ")}
 - kui sisuliselt sama toode on juba tuntud toodete seas, kasuta täpselt sama nime. Tuntud tooted: ${knownNames.slice(0, 120).join(", ") || "(pole veel)"}
-- jäta täiesti välja: pandipakend, allahindlusread, boonuspunktid, kokku-read, ning igasugused
-  kotid/pakendid, mida pood müüb ostude kaasavõtmiseks (nt "Kilekott", "Ostukott", "Paberkott",
-  "Kandekott", "Riidest kott" jms) — need ei ole toit ega majapidamistarve, need on poe enda pakend
+- jäta täiesti välja: pandipakend, allahindlusread, boonuspunktid, kokku-read
+- kotid, mida pood müüb ostude kaasavõtmiseks (nt "Kilekott", "Ostukott", "Paberkott",
+  "Kandekott", "Riidest kott", "Õhuke kilekott" jms) võta ALATI sisse nimega täpselt "${BAG_NAME}"
+  ja kategooriaga "Muu" (toidu-, prügi- ja külmutuskotid on tavalised tooted, mitte poekotid)
 - kui kuupäeva ei ole näha, kasuta: ${today()}
 - kõik hinnad eurodes, punkt kümnendkohana
 - conf näitab, kui hästi rida loetav oli`;
 
   const parsed = await callAI(prompt, { images: file });
   const rawLines = Array.isArray(parsed && parsed.lines) ? parsed.lines : [];
-  const lines = rawLines
-    .filter((l) => l && l.name && !isBagLine(l.name))
+  const allLines = rawLines
+    .filter((l) => l && l.name)
     .map((l) => {
       const qty = Number(l.qty) || 1;
       const unitPrice = Number(l.unitPrice) || 0;
-      return {
+      return asBag({
         id: uid(),
         name: String(l.name).trim(),
         category: CATEGORIES.includes(l.category) ? l.category : "Muu",
@@ -502,8 +512,18 @@ Reeglid:
         unitPrice,
         total: Number(l.total) || unitPrice * qty,
         conf: Number(l.conf) || 0.8,
-      };
+      });
     });
+  // Kõik poekotid ühele reale, et ülevaatusel oleks näha üks "Poekott"
+  const lines = [];
+  allLines.forEach((l) => {
+    const bag = l.name === BAG_NAME && lines.find((m) => m.name === BAG_NAME);
+    if (!bag) return lines.push(l);
+    bag.qty += l.qty;
+    bag.total = Math.round((bag.total + l.total) * 100) / 100;
+    bag.unitPrice = Math.round((bag.total / bag.qty) * 100) / 100;
+    bag.conf = Math.min(bag.conf, l.conf);
+  });
   return {
     store: typeof (parsed && parsed.store) === "string" ? parsed.store : "",
     date: /^\d{4}-\d{2}-\d{2}$/.test(parsed && parsed.date) ? parsed.date : today(),
@@ -1514,7 +1534,7 @@ function ListView({ products, data, save, onOpen }) {
     // tegelikult võib kodus veel piisavalt olla.
     const known = products.find((x) => x.k === k && !x.hidden);
     save({ ...data, extras: [...data.extras, { id: uid(), name: t }] });
-    if (known) {
+    if (known && !known.bag) {
       setNoticeTone(progressColor(known.progress));
       setNotice(
         known.progress < 0.35
@@ -2164,7 +2184,7 @@ function AddView({ data, save, products, goList, imagesOk }) {
     });
 
   const commit = () => {
-    const raw = draft.lines.filter((l) => l.name.trim());
+    const raw = draft.lines.filter((l) => l.name.trim()).map(asBag);
     if (!raw.length) return;
     // Sama nimega read liidetakse üheks, muidu näeb äpp neli pakki ühe ostu asemel neljana
     const merged = [];
@@ -3378,7 +3398,9 @@ function ProductsView({ products, onOpen }) {
                 {p.name}
               </div>
               <div style={{ fontSize: 12.5, color: T.faint, marginTop: 2 }}>
-                {p.count}× · iga {Math.round(p.est)} päeva tagant
+                {p.bag
+                  ? `${p.units} ${p.units === 1 ? "kott" : "kotti"} · ${p.count} poeskäigul`
+                  : `${p.count}× · iga ${Math.round(p.est)} päeva tagant`}
               </div>
             </div>
             <span style={{ fontSize: 14, color: T.soft, ...num }}>{eur(p.spend)}</span>
@@ -3439,6 +3461,18 @@ function ProductSheet({ p, data, save, onClose, onKeyChange }) {
         )}
       </div>
 
+      {p.bag ? (
+      <Panel style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 15, lineHeight: 1.6 }}>
+          Oled ostnud kokku {p.units} {p.units === 1 ? "poekoti" : "poekotti"} {p.count} poeskäigul ja maksnud nende eest{" "}
+          {eur(p.spend)}. Viimane ost {fmtDate(p.lastDate)}, {relDays(p.daysSincePurchase)}.
+        </div>
+        <div style={{ fontSize: 13, color: T.faint, marginTop: 10, lineHeight: 1.5 }}>
+          Kõik kilekotid, paberkotid ja ostukotid liidetakse siia. Poekotti ostunimekirja ei
+          ennustata.
+        </div>
+      </Panel>
+      ) : (
       <Panel style={{ marginBottom: 10 }}>
         <div
           style={{
@@ -3472,6 +3506,7 @@ function ProductSheet({ p, data, save, onClose, onKeyChange }) {
           </div>
         )}
       </Panel>
+      )}
 
       <Panel style={{ marginBottom: 10 }}>
         {[
@@ -3902,7 +3937,7 @@ function RecipesView({ data, save, products, plan, onOpenAccount }) {
   const household = data.settings?.household || 2;
   // Kodus on tõenäoliselt see, mida on ostetud ja mis pole veel otsa saanud
   const inStock = products
-    .filter((p) => !p.hidden && p.progress < 1)
+    .filter((p) => !p.hidden && !p.bag && p.progress < 1)
     .sort((a, b) => a.progress - b.progress)
     .slice(0, 30);
 

@@ -264,3 +264,20 @@ Sinna ühendati 23.09 Juhendi/KKK uuendus koos järgmiste muudatustega:
 Firebase: Authentication -> Email/Password on nüüd lubatud.
 Domeen: needmore.eu (Zone.ee, DNS: A 75.2.60.5, CNAME www ->
 needmore-pere.netlify.app), lisatud Netlify saidile needmore-pere.
+
+## 23.09.2026: Poekott
+
+Poe kaasavõtukotid (kilekott, paberkott, ostukott, kandekott, riidest kott,
+"kott" jne) ei jää enam tšekilt välja, vaid salvestatakse alati ühe tootena
+"Poekott" (kategooria Muu). Toidu-, prügi-, külmutus- jm kotid jäävad
+tavalisteks toodeteks (`NOT_BAG_WORDS`).
+
+- `readReceipt`: AI juhend palub kotid nimetada "Poekott"; `asBag()` teeb
+  sama kaitseks koodis ja liidab kõik poekotid üheks ülevaatusreaks.
+- AddView `commit`: `asBag()` ka käsitsi sisestatud ridadele.
+- `buildProducts`: poekotil `bag: true`, `progress: 0` → ei tule nimekirja,
+  teavitustesse ega retseptide "kodus olemas" loetellu; `units` = kotte kokku.
+- Tooted/ProductSheet näitavad poekotil "N kotti · M poeskäigul" ja kulusid.
+
+Ehitus: `app/app.js` = `esbuild source/needmore-source.jsx --format=iife`
+(esbuild 0.23). CACHE -> `needmore-v11`.
