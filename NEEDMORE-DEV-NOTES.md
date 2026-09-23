@@ -359,3 +359,12 @@ rahulolev). Vähendatud 256×256 läbipaistvaks PNG-ks (~7 KB).
 - Animatsioon mängib üks kord (`nm-pat` kõhu patsutus, `nm-hop` hüpe);
   `prefers-reduced-motion` lülitab selle välja (globaalne reegel App'i stiilis).
 - Pildid on sw.js ASSETS-is. CACHE -> `needmore-v18`.
+
+## 23.09.2026: kõik tasuta (testimiseks)
+
+Kasutaja soovil eemaldati Pro pakett: Retseptisoovitused ja Nädalaplaan on
+kõigile avatud, "Minu konto" all pole enam "Minu pakett" paneeli, päises pole
+Pro täppi, `plan` prop/kontroll on koodist eemaldatud ja Juhend/KKK ei maini
+Pro paketti. Vana loogika on git ajaloos (commit enne seda), kui Pro tuleb
+hiljem tagasi. Profiilidesse varem salvestatud `plan` väli jääb kasutamata.
+CACHE -> `needmore-v19`.

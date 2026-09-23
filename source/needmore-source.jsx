@@ -3883,7 +3883,7 @@ function GuideSheet({ onClose }) {
     ],
     [
       "Retseptid ja Nädalaplaan",
-      "„Minu retseptid“ all saad kirja panna oma pere road koos kogustega. Retsepti avades vali, mitmele inimesele teed, ja äpp arvutab kogused ümber ning lisab puuduvad tooted ostunimekirja. See on kõigile tasuta. „Retseptisoovitused“ pakub AI abiga roogi sellest, mis kodus arvatavasti juba on, ja „Nädalaplaan“ aitab kogu nädala menüü ette planeerida. Need kaks kuuluvad Pro paketi alla.",
+      "„Minu retseptid“ all saad kirja panna oma pere road koos kogustega. Retsepti avades vali, mitmele inimesele teed, ja äpp arvutab kogused ümber ning lisab puuduvad tooted ostunimekirja. „Retseptisoovitused“ pakub AI abiga roogi sellest, mis kodus arvatavasti juba on, ja „Nädalaplaan“ aitab kogu nädala menüü ette planeerida.",
     ],
     [
       "Kulud",
@@ -3891,7 +3891,7 @@ function GuideSheet({ onClose }) {
     ],
     [
       "Minu konto",
-      "Inimese-kujuline nupp ülal päises avab ISIKLIKU konto (erineb pere-koodist). Sisse logides saad seadistada, millest ja millal äpp teavitab, ning näha, kas kasutad Tasuta või Pro paketti.",
+      "Inimese-kujuline nupp ülal päises avab ISIKLIKU konto (erineb pere-koodist). Sisse logides saad seadistada, millest ja millal äpp teavitab.",
     ],
   ];
 
@@ -4025,19 +4025,15 @@ function FaqSheet({ onClose }) {
       ],
     },
     {
-      label: "Retseptid, Nädalaplaan ja Pro pakett",
+      label: "Retseptid ja Nädalaplaan",
       items: [
         [
           "Kuidas oma retsepti teha ja tooted nimekirja saada?",
-          "Ava Retseptid → „Minu retseptid“ → „Loo retsept“. Kirjuta roa nimi, mitmele inimesele retsept on ning koostisosad koguse ja ühikuga. Retsepti avades vali „Teen … inimesele“, märgi tooted, mida on vaja osta, ja vajuta „Lisa nimekirja“. Nimekirjas on näha kogus ja mis roa jaoks toode on. Kui sama toode on juba nimekirjas, liidetakse kogused kokku. Oma retseptid on tasuta.",
+          "Ava Retseptid → „Minu retseptid“ → „Loo retsept“. Kirjuta roa nimi, mitmele inimesele retsept on ning koostisosad koguse ja ühikuga. Retsepti avades vali „Teen … inimesele“, märgi tooted, mida on vaja osta, ja vajuta „Lisa nimekirja“. Nimekirjas on näha kogus ja mis roa jaoks toode on. Kui sama toode on juba nimekirjas, liidetakse kogused kokku.",
         ],
         [
           "Mis vahe on Retseptidel ja Nädalaplaanil?",
           "„Retseptid“ pakub kohe AI roogi sellest, mida kodus arvatavasti on. „Nädalaplaan“ aitab kogu nädala peale ette mõelda — iga päeva jaoks saab valida kas mõne pakutud retsepti või kirjutada ise, mida süüa.",
-        ],
-        [
-          "Kas Pro pakett maksab praegu päriselt raha?",
-          "Ei, hetkel on Pro „testrežiimis“ — saab tasuta proovida. Päris makseid pole veel sisse ehitatud.",
         ],
       ],
     },
@@ -4486,48 +4482,15 @@ function MyRecipeSheet({ r, data, save, classify, household, onEdit, onClose }) 
   );
 }
 
-function RecipesView({ data, save, products, plan, onOpenAccount }) {
-  const isPro = plan === "pro";
+function RecipesView({ data, save, products }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [open, setOpen] = useState(null);
-  const [subTab, setSubTab] = useState(isPro ? "recipes" : "mine"); // "mine" | "recipes" | "plan"
+  const [subTab, setSubTab] = useState("mine"); // "mine" | "recipes" | "plan"
   const [openMine, setOpenMine] = useState(null); // oma retsepti id
   const [editing, setEditing] = useState(null); // {} = uus, retsept = muutmine
 
   const myRecipes = data.myRecipes || [];
-
-  const proLock = (
-    <Panel style={{ padding: "26px 20px", textAlign: "center" }}>
-      <div
-        style={{
-          width: 52,
-          height: 52,
-          borderRadius: 26,
-          background: tint(T.gold, 0.14),
-          color: T.gold,
-          fontSize: 24,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          margin: "0 auto 14px",
-        }}
-      >
-        ✨
-      </div>
-      <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
-        {subTab === "plan" ? "Nädalaplaan on Pro paketis" : "Retseptisoovitused on Pro paketis"}
-      </div>
-      <div style={{ fontSize: 14, color: T.faint, lineHeight: 1.55, marginBottom: 18 }}>
-        AI paneb kokku toidusoovitused just sellest, mis teil kodus juba olemas on, ja
-        Nädalaplaaniga saad nädala toidud ette ära planeerida. Oma retseptid on kõigile
-        tasuta.
-      </div>
-      <Btn kind="solid" full onClick={onOpenAccount}>
-        Vaata Pro paketti
-      </Btn>
-    </Panel>
-  );
 
   const household = data.settings?.household || 2;
   // Kodus on tõenäoliselt see, mida on ostetud ja mis pole veel otsa saanud
@@ -4589,9 +4552,7 @@ function RecipesView({ data, save, products, plan, onOpenAccount }) {
         <MyRecipesList recipes={myRecipes} onNew={() => setEditing({})} onOpen={(r) => setOpenMine(r.id)} />
       )}
 
-      {!isPro && subTab !== "mine" && proLock}
-
-      {isPro && subTab === "plan" && (
+      {subTab === "plan" && (
         <MealPlanner
           data={data}
           save={save}
@@ -4600,14 +4561,14 @@ function RecipesView({ data, save, products, plan, onOpenAccount }) {
         />
       )}
 
-      {isPro && subTab === "recipes" && inStock.length < 3 && (
+      {subTab === "recipes" && inStock.length < 3 && (
         <Empty
           title="Liiga vähe teadaolevat kraami"
           hint={`Äpp näeb praegu ${inStock.length} toodet, mis peaks kodus olema. Lisa paar tšekki — kui midagi on ostetud ammu, arvab äpp, et see on juba otsas, ja jätab retseptidest välja.`}
         />
       )}
 
-      {isPro && subTab === "recipes" && inStock.length >= 3 && (
+      {subTab === "recipes" && inStock.length >= 3 && (
         <>
       <Panel style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 15, lineHeight: 1.55, marginBottom: 14 }}>
@@ -4786,7 +4747,7 @@ function RecipesView({ data, save, products, plan, onOpenAccount }) {
 }
 
 /* ================================================================== */
-/*  Nädalaplaan — Pro pakett, elab Retseptid vaate all                  */
+/*  Nädalaplaan — elab Retseptid vaate all                              */
 /* ================================================================== */
 
 const FULL_WEEKDAY_NAMES = ["Esmaspäev", "Teisipäev", "Kolmapäev", "Neljapäev", "Reede", "Laupäev", "Pühapäev"];
@@ -5436,7 +5397,7 @@ function SettingsSheet({ data, save, onClose, household, onLeaveHousehold }) {
 }
 
 /* ================================================================== */
-/*  Minu konto — isiklik sisselogimine (teavitused + Pro pakett)       */
+/*  Minu konto — isiklik sisselogimine (teavitused)                    */
 /* ================================================================== */
 
 function AccountSheet({ acc, onClose }) {
@@ -5475,7 +5436,7 @@ function AccountSheet({ acc, onClose }) {
         <div style={{ fontSize: 21, letterSpacing: "-0.015em", marginBottom: 16 }}>Minu konto</div>
         <Empty
           title="Konto vajab veebi-seadistust"
-          hint="Isiklik konto (teavitused, Pro pakett) töötab pärast seda, kui äpp on Firebase'iga veebi üles seatud — praegu jookseb prooviversioon ainult selles seadmes."
+          hint="Isiklik konto (teavitused) töötab pärast seda, kui äpp on Firebase'iga veebi üles seatud — praegu jookseb prooviversioon ainult selles seadmes."
         />
         <Btn kind="solid" full onClick={onClose} style={{ marginTop: 14 }}>
           Sulge
@@ -5555,7 +5516,6 @@ function AccountSheet({ acc, onClose }) {
     );
 
   const notifPrefs = profile?.notifications || { enabled: false, categories: {} };
-  const plan = profile?.plan || "free";
 
   return (
     <Sheet onClose={onClose} z={70}>
@@ -5641,55 +5601,6 @@ function AccountSheet({ acc, onClose }) {
               })}
             </div>
           </div>
-        )}
-      </Panel>
-
-      <Panel style={{ marginBottom: 10 }}>
-        <Label>Minu pakett</Label>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 12,
-          }}
-        >
-          <div style={{ fontSize: 16, fontWeight: 600 }}>
-            {plan === "pro" ? "Pro" : "Tasuta"}
-          </div>
-          {plan === "pro" && (
-            <span
-              style={{
-                fontSize: 11.5,
-                fontWeight: 700,
-                color: T.gold,
-                background: tint(T.gold, 0.14),
-                borderRadius: 999,
-                padding: "4px 10px",
-              }}
-            >
-              AKTIIVNE
-            </span>
-          )}
-        </div>
-
-        {plan !== "pro" ? (
-          <div>
-            <div style={{ fontSize: 13.5, color: T.faint, lineHeight: 1.55, marginBottom: 12 }}>
-              Pro sisaldab AI retseptisoovitusi kodus olevatest toodetest ja tulevikus
-              lisanduvat söögikorra-planeerimist.
-            </div>
-            <Btn kind="solid" full onClick={() => saveProfile({ plan: "pro" })}>
-              Proovi Pro tasuta (testrežiim)
-            </Btn>
-            <div style={{ fontSize: 11.5, color: T.faint, marginTop: 8, lineHeight: 1.5 }}>
-              Testrežiim — päris maksed pole veel seadistatud.
-            </div>
-          </div>
-        ) : (
-          <Btn kind="bare" full onClick={() => saveProfile({ plan: "free" })}>
-            Loobu Pro-st
-          </Btn>
         )}
       </Panel>
 
@@ -5903,7 +5814,7 @@ const HAS_AUTH = !!(HAS_FIREBASE && !FIREBASE_INIT_ERROR && window.firebase.auth
 const authApi = HAS_AUTH ? window.firebase.auth() : null;
 
 /* ================================================================== */
-/*  Isiklik konto (Firebase Auth) — teavituste eelistused ja Pro-pakett */
+/*  Isiklik konto (Firebase Auth) — teavituste eelistused              */
 /*  See on eraldiseisev kiht pere-koodiga jagatud andmetest: iga       */
 /*  inimene saab (soovi korral) enda kontoga sisse logida, et hallata  */
 /*  ISIKLIKKE seadeid (teavitused, pakett). Ostunimekiri ise jääb      */
@@ -5929,7 +5840,6 @@ function friendlyAuthError(e) {
 }
 
 const emptyProfile = () => ({
-  plan: "free",
   notifications: { enabled: false, categories: {} },
 });
 
@@ -6327,7 +6237,6 @@ export default function App() {
   const products = useMemo(() => buildProducts(data), [data]);
   const needCount = products.filter((p) => !p.hidden && p.progress >= 0.7).length;
   const sheetProduct = sheet ? products.find((x) => x.k === sheet.k) : null;
-  const plan = acc.profile?.plan || "free";
 
   // Kohalikud teavitused: kui kasutaja on need enda kontos sisse lülitanud ja
   // brauser on loa andnud, näitame teavitust, kui miski läheb "otsas" olekusse.
@@ -6468,9 +6377,6 @@ export default function App() {
                 <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
-              {plan === "pro" && (
-                <span style={{ position: "absolute", top: -3, right: -3, width: 9, height: 9, borderRadius: 5, background: T.gold, border: `2px solid ${T.bg}` }} />
-              )}
             </button>
             <button
               onClick={() => setSettings(true)}
@@ -6501,8 +6407,6 @@ export default function App() {
           data={data}
           save={save}
           products={products}
-          plan={plan}
-          onOpenAccount={() => setAccount(true)}
         />
       )}
       {tab === "stats" && <MoneyTab data={data} products={products} onOpen={setSheet} />}

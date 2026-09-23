@@ -3177,7 +3177,7 @@ ${xref}
       ],
       [
         "Retseptid ja N\xE4dalaplaan",
-        "\u201EMinu retseptid\u201C all saad kirja panna oma pere road koos kogustega. Retsepti avades vali, mitmele inimesele teed, ja \xE4pp arvutab kogused \xFCmber ning lisab puuduvad tooted ostunimekirja. See on k\xF5igile tasuta. \u201ERetseptisoovitused\u201C pakub AI abiga roogi sellest, mis kodus arvatavasti juba on, ja \u201EN\xE4dalaplaan\u201C aitab kogu n\xE4dala men\xFC\xFC ette planeerida. Need kaks kuuluvad Pro paketi alla."
+        "\u201EMinu retseptid\u201C all saad kirja panna oma pere road koos kogustega. Retsepti avades vali, mitmele inimesele teed, ja \xE4pp arvutab kogused \xFCmber ning lisab puuduvad tooted ostunimekirja. \u201ERetseptisoovitused\u201C pakub AI abiga roogi sellest, mis kodus arvatavasti juba on, ja \u201EN\xE4dalaplaan\u201C aitab kogu n\xE4dala men\xFC\xFC ette planeerida."
       ],
       [
         "Kulud",
@@ -3185,7 +3185,7 @@ ${xref}
       ],
       [
         "Minu konto",
-        "Inimese-kujuline nupp \xFClal p\xE4ises avab ISIKLIKU konto (erineb pere-koodist). Sisse logides saad seadistada, millest ja millal \xE4pp teavitab, ning n\xE4ha, kas kasutad Tasuta v\xF5i Pro paketti."
+        "Inimese-kujuline nupp \xFClal p\xE4ises avab ISIKLIKU konto (erineb pere-koodist). Sisse logides saad seadistada, millest ja millal \xE4pp teavitab."
       ]
     ];
     return /* @__PURE__ */ React.createElement(Sheet, { onClose, z: 80 }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14, marginBottom: 18 } }, /* @__PURE__ */ React.createElement(Wordmark, { height: 40 }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, letterSpacing: "-0.015em" } }, "Kuidas kasutada"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, marginTop: 2 } }, "Ostunimekiri, mis \xF5pib sinu r\xFCtmi"))), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, steps.map(([title, body], i) => /* @__PURE__ */ React.createElement(
@@ -3283,19 +3283,15 @@ ${xref}
         ]
       },
       {
-        label: "Retseptid, N\xE4dalaplaan ja Pro pakett",
+        label: "Retseptid ja N\xE4dalaplaan",
         items: [
           [
             "Kuidas oma retsepti teha ja tooted nimekirja saada?",
-            "Ava Retseptid \u2192 \u201EMinu retseptid\u201C \u2192 \u201ELoo retsept\u201C. Kirjuta roa nimi, mitmele inimesele retsept on ning koostisosad koguse ja \xFChikuga. Retsepti avades vali \u201ETeen \u2026 inimesele\u201C, m\xE4rgi tooted, mida on vaja osta, ja vajuta \u201ELisa nimekirja\u201C. Nimekirjas on n\xE4ha kogus ja mis roa jaoks toode on. Kui sama toode on juba nimekirjas, liidetakse kogused kokku. Oma retseptid on tasuta."
+            "Ava Retseptid \u2192 \u201EMinu retseptid\u201C \u2192 \u201ELoo retsept\u201C. Kirjuta roa nimi, mitmele inimesele retsept on ning koostisosad koguse ja \xFChikuga. Retsepti avades vali \u201ETeen \u2026 inimesele\u201C, m\xE4rgi tooted, mida on vaja osta, ja vajuta \u201ELisa nimekirja\u201C. Nimekirjas on n\xE4ha kogus ja mis roa jaoks toode on. Kui sama toode on juba nimekirjas, liidetakse kogused kokku."
           ],
           [
             "Mis vahe on Retseptidel ja N\xE4dalaplaanil?",
             "\u201ERetseptid\u201C pakub kohe AI roogi sellest, mida kodus arvatavasti on. \u201EN\xE4dalaplaan\u201C aitab kogu n\xE4dala peale ette m\xF5elda \u2014 iga p\xE4eva jaoks saab valida kas m\xF5ne pakutud retsepti v\xF5i kirjutada ise, mida s\xFC\xFCa."
-          ],
-          [
-            "Kas Pro pakett maksab praegu p\xE4riselt raha?",
-            "Ei, hetkel on Pro \u201Etestre\u017Eiimis\u201C \u2014 saab tasuta proovida. P\xE4ris makseid pole veel sisse ehitatud."
           ]
         ]
       },
@@ -3588,33 +3584,14 @@ ${xref}
       i + 1
     ), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14.5, lineHeight: 1.6 } }, s)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { style: { flex: 1 }, onClick: () => onEdit(r) }, "Muuda retsepti"), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", style: { flex: 1 }, onClick: onClose }, "Sulge")));
   }
-  function RecipesView({ data, save, products, plan, onOpenAccount }) {
-    const isPro = plan === "pro";
+  function RecipesView({ data, save, products }) {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const [open, setOpen] = useState(null);
-    const [subTab, setSubTab] = useState(isPro ? "recipes" : "mine");
+    const [subTab, setSubTab] = useState("mine");
     const [openMine, setOpenMine] = useState(null);
     const [editing, setEditing] = useState(null);
     const myRecipes = data.myRecipes || [];
-    const proLock = /* @__PURE__ */ React.createElement(Panel, { style: { padding: "26px 20px", textAlign: "center" } }, /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        style: {
-          width: 52,
-          height: 52,
-          borderRadius: 26,
-          background: tint(T.gold, 0.14),
-          color: T.gold,
-          fontSize: 24,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          margin: "0 auto 14px"
-        }
-      },
-      "\u2728"
-    ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 600, marginBottom: 8 } }, subTab === "plan" ? "N\xE4dalaplaan on Pro paketis" : "Retseptisoovitused on Pro paketis"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 14, color: T.faint, lineHeight: 1.55, marginBottom: 18 } }, "AI paneb kokku toidusoovitused just sellest, mis teil kodus juba olemas on, ja N\xE4dalaplaaniga saad n\xE4dala toidud ette \xE4ra planeerida. Oma retseptid on k\xF5igile tasuta."), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onOpenAccount }, "Vaata Pro paketti"));
     const household = data.settings?.household || 2;
     const inStock = products.filter((p) => !p.hidden && !p.bag && p.progress < 1).sort((a, b) => a.progress - b.progress).slice(0, 30);
     const stored = data.recipes;
@@ -3647,7 +3624,7 @@ ${xref}
       background: on ? tint(T.gold, 0.16) : T.raised,
       color: on ? T.gold : T.soft
     });
-    return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("mine"), style: subTabChip(subTab === "mine") }, "Minu retseptid"), /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("recipes"), style: subTabChip(subTab === "recipes") }, "Retseptisoovitused"), /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("plan"), style: subTabChip(subTab === "plan") }, "N\xE4dalaplaan")), subTab === "mine" && /* @__PURE__ */ React.createElement(MyRecipesList, { recipes: myRecipes, onNew: () => setEditing({}), onOpen: (r) => setOpenMine(r.id) }), !isPro && subTab !== "mine" && proLock, isPro && subTab === "plan" && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("mine"), style: subTabChip(subTab === "mine") }, "Minu retseptid"), /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("recipes"), style: subTabChip(subTab === "recipes") }, "Retseptisoovitused"), /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("plan"), style: subTabChip(subTab === "plan") }, "N\xE4dalaplaan")), subTab === "mine" && /* @__PURE__ */ React.createElement(MyRecipesList, { recipes: myRecipes, onNew: () => setEditing({}), onOpen: (r) => setOpenMine(r.id) }), subTab === "plan" && /* @__PURE__ */ React.createElement(
       MealPlanner,
       {
         data,
@@ -3655,13 +3632,13 @@ ${xref}
         recipes: [...stored?.list || [], ...myRecipes.map((r) => ({ ...r, mine: true }))],
         onOpenRecipe: (r) => r.mine ? setOpenMine(r.id) : setOpen(r)
       }
-    ), isPro && subTab === "recipes" && inStock.length < 3 && /* @__PURE__ */ React.createElement(
+    ), subTab === "recipes" && inStock.length < 3 && /* @__PURE__ */ React.createElement(
       Empty,
       {
         title: "Liiga v\xE4he teadaolevat kraami",
         hint: `\xC4pp n\xE4eb praegu ${inStock.length} toodet, mis peaks kodus olema. Lisa paar t\u0161ekki \u2014 kui midagi on ostetud ammu, arvab \xE4pp, et see on juba otsas, ja j\xE4tab retseptidest v\xE4lja.`
       }
-    ), isPro && subTab === "recipes" && inStock.length >= 3 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, lineHeight: 1.55, marginBottom: 14 } }, "Kodus peaks praegu olema ", inStock.length, " toodet. Pakun neist rooga", " ", household, " inimesele."), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: generate }, busy ? "M\xF5tlen\u2026" : stored ? "Paku uued road" : "Paku roogi")), error && /* @__PURE__ */ React.createElement(
+    ), subTab === "recipes" && inStock.length >= 3 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, lineHeight: 1.55, marginBottom: 14 } }, "Kodus peaks praegu olema ", inStock.length, " toodet. Pakun neist rooga", " ", household, " inimesele."), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: generate }, busy ? "M\xF5tlen\u2026" : stored ? "Paku uued road" : "Paku roogi")), error && /* @__PURE__ */ React.createElement(
       "div",
       {
         style: {
@@ -4279,7 +4256,7 @@ ${xref}
         Empty,
         {
           title: "Konto vajab veebi-seadistust",
-          hint: "Isiklik konto (teavitused, Pro pakett) t\xF6\xF6tab p\xE4rast seda, kui \xE4pp on Firebase'iga veebi \xFCles seatud \u2014 praegu jookseb prooviversioon ainult selles seadmes."
+          hint: "Isiklik konto (teavitused) t\xF6\xF6tab p\xE4rast seda, kui \xE4pp on Firebase'iga veebi \xFCles seatud \u2014 praegu jookseb prooviversioon ainult selles seadmes."
         }
       ), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onClose, style: { marginTop: 14 } }, "Sulge"));
     if (!authReady || authUser && !profileLoaded)
@@ -4325,7 +4302,6 @@ ${xref}
         mode === "signup" ? "Mul on juba konto \u2014 logi sisse" : "Pole veel kontot? Loo \xFCks"
       )), /* @__PURE__ */ React.createElement(Btn, { kind: "bare", full: true, style: { marginTop: 10 }, onClick: onClose }, "J\xE4tka ilma kontota"));
     const notifPrefs = profile?.notifications || { enabled: false, categories: {} };
-    const plan = profile?.plan || "free";
     return /* @__PURE__ */ React.createElement(Sheet, { onClose, z: 70 }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 21, letterSpacing: "-0.015em", marginBottom: 16 } }, "Minu konto"), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, null, "Konto"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, fontWeight: 600, marginBottom: 12 } }, authUser.email), !authUser.emailVerified && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, color: T.faint, lineHeight: 1.5, marginBottom: 12 } }, "Saatsime sulle kinnituskirja \u2014 palun kontrolli oma postkasti (ka r\xE4mpsposti kausta)."), /* @__PURE__ */ React.createElement(Btn, { full: true, onClick: signOutUser }, "Logi v\xE4lja")), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, null, "Teavitused"), notifPerm === "unsupported" ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, lineHeight: 1.5 } }, "See brauser ei toeta teavitusi.") : notifPerm === "denied" ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, lineHeight: 1.5 } }, "Teavitused on brauseri tasandil blokeeritud. Luba need brauseri/telefoni seadetest saidi jaoks, et siin sisse l\xFClitada.") : !notifPrefs.enabled || notifPerm !== "granted" ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13.5, color: T.faint, lineHeight: 1.5, marginBottom: 12 } }, 'Saad teada, kui m\xF5ni toode l\xE4heb "otsas" olekusse \u2014 nii ei pea ise nimekirja kontrollima k\xE4ima. T\xF6\xF6tab k\xF5ige paremini siis, kui \xE4pp on hiljuti avatud olnud.'), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: requestNotif }, "Luba teavitused")) : /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(
       "div",
       {
@@ -4366,32 +4342,7 @@ ${xref}
         },
         cat
       );
-    })))), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, null, "Minu pakett"), /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        style: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 12
-        }
-      },
-      /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 600 } }, plan === "pro" ? "Pro" : "Tasuta"),
-      plan === "pro" && /* @__PURE__ */ React.createElement(
-        "span",
-        {
-          style: {
-            fontSize: 11.5,
-            fontWeight: 700,
-            color: T.gold,
-            background: tint(T.gold, 0.14),
-            borderRadius: 999,
-            padding: "4px 10px"
-          }
-        },
-        "AKTIIVNE"
-      )
-    ), plan !== "pro" ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13.5, color: T.faint, lineHeight: 1.55, marginBottom: 12 } }, "Pro sisaldab AI retseptisoovitusi kodus olevatest toodetest ja tulevikus lisanduvat s\xF6\xF6gikorra-planeerimist."), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: () => saveProfile({ plan: "pro" }) }, "Proovi Pro tasuta (testre\u017Eiim)"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: T.faint, marginTop: 8, lineHeight: 1.5 } }, "Testre\u017Eiim \u2014 p\xE4ris maksed pole veel seadistatud.")) : /* @__PURE__ */ React.createElement(Btn, { kind: "bare", full: true, onClick: () => saveProfile({ plan: "free" }) }, "Loobu Pro-st")), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onClose }, "Sulge"));
+    })))), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: onClose }, "Sulge"));
   }
   function diffCollection(ref, prevArr, nextArr) {
     const prevById = new Map((prevArr || []).map((x) => [x.id, x]));
@@ -4581,7 +4532,6 @@ ${xref}
     return "Midagi l\xE4ks valesti. Proovi uuesti." + (detail ? ` (${detail})` : "");
   }
   const emptyProfile = () => ({
-    plan: "free",
     notifications: { enabled: false, categories: {} }
   });
   function useAccount() {
@@ -4914,7 +4864,6 @@ ${xref}
     const products = useMemo(() => buildProducts(data), [data]);
     const needCount = products.filter((p) => !p.hidden && p.progress >= 0.7).length;
     const sheetProduct = sheet ? products.find((x) => x.k === sheet.k) : null;
-    const plan = acc.profile?.plan || "free";
     useEffect(() => {
       const prefs = acc.profile?.notifications;
       if (!prefs?.enabled) return;
@@ -5020,8 +4969,7 @@ ${xref}
           "aria-label": "Minu konto",
           style: { border: "none", borderRadius: 999, background: T.raised, color: T.gold, cursor: "pointer", padding: "9px 13px", display: "flex", alignItems: "center", position: "relative" }
         },
-        /* @__PURE__ */ React.createElement("svg", { width: "17", height: "17", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.7", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "7", r: "4" })),
-        plan === "pro" && /* @__PURE__ */ React.createElement("span", { style: { position: "absolute", top: -3, right: -3, width: 9, height: 9, borderRadius: 5, background: T.gold, border: `2px solid ${T.bg}` } })
+        /* @__PURE__ */ React.createElement("svg", { width: "17", height: "17", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.7", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "7", r: "4" }))
       ), /* @__PURE__ */ React.createElement(
         "button",
         {
@@ -5038,9 +4986,7 @@ ${xref}
         {
           data,
           save,
-          products,
-          plan,
-          onOpenAccount: () => setAccount(true)
+          products
         }
       ),
       tab === "stats" && /* @__PURE__ */ React.createElement(MoneyTab, { data, products, onOpen: setSheet }),
