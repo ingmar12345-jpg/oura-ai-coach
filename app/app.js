@@ -520,6 +520,46 @@ Iga retsepti kohta 4-6 koostisosa ja 3-4 sammu. Kirjuta eesti keeles.`;
       } : null
     }));
   }
+  const normUnit = (qty, unit) => {
+    const u = String(unit || "").toLowerCase().trim();
+    if (u === "dl") return { qty: qty * 100, unit: "ml" };
+    if (u === "cl") return { qty: qty * 10, unit: "ml" };
+    return { qty, unit: UNITS.includes(u) ? u : "tk" };
+  };
+  async function fetchWishRecipe(wish, people, homeNames) {
+    const prompt = `Kasutaja soovib s\xFC\xFCa: "${wish}".
+Koosta sellest \xFCks lihtne kodune retsept ${people} inimesele.
+Kodus on t\xF5en\xE4oliselt olemas: ${homeNames.join(", ") || "(teadmata)"}. Kui m\xF5ni neist sobib retsepti, kasuta koostisosa nimeks t\xE4pselt sama nime.
+
+Tagasta AINULT JSON, ilma selgituste ja koodiplokkideta, t\xE4pselt sellises kujus:
+{"name": "<roa nimi>", "minutes": <valmimisaeg minutites>, "blurb": "<\xFCks lause, mis roog see on>",
+ "items": [{"name": "<l\xFChike eestikeelne tootenimi nagu poes, nt Hakkliha, Sibul, Riis>", "qty": <kogus ${people} inimesele>, "unit": "<\xFCks j\xE4rgmistest: ${UNITS.join(", ")}>"}],
+ "steps": ["<\xFCks l\xFChike konkreetne valmistamise samm>"]}
+
+Reeglid:
+- kogused on ${people} inimesele ja sellistes \xFChikutes, nagu poest osta (g, ml, tk, pakk)
+- sool, pipar, \xF5li ja maitseained: qty 0 (maitse j\xE4rgi)
+- 4-10 koostisosa ja 4-8 sammu, k\xF5ik eesti keeles`;
+    const r = await callAI(prompt);
+    const items = (Array.isArray(r && r.items) ? r.items : []).filter((i) => i && i.name).map((i) => ({ name: String(i.name).trim(), ...normUnit(Math.max(0, Number(i.qty) || 0), i.unit) }));
+    if (!r || !r.name || !items.length) {
+      const err = new Error("Vastus tuli ootamatus vormingus");
+      err.code = "invalid_json";
+      throw err;
+    }
+    return {
+      id: uid(),
+      name: String(r.name).trim(),
+      serves: people,
+      items,
+      steps: (Array.isArray(r.steps) ? r.steps : []).map(String),
+      blurb: r.blurb ? String(r.blurb) : "",
+      minutes: Number(r.minutes) || null,
+      ai: true,
+      wish,
+      createdAt: today()
+    };
+  }
   async function fetchRecipeDetail(r, household) {
     const prompt = `Roog: ${r.name}, ${household} inimesele.
 Koostisosad: ${r.items.map((i) => `${i.name} ${i.amount}`).join(", ")}
@@ -3177,7 +3217,7 @@ ${xref}
       ],
       [
         "Retseptid ja N\xE4dalaplaan",
-        "\u201EMinu retseptid\u201C all saad kirja panna oma pere road koos kogustega. Retsepti avades vali, mitmele inimesele teed, ja \xE4pp arvutab kogused \xFCmber ning lisab puuduvad tooted ostunimekirja. \u201ERetseptisoovitused\u201C pakub AI abiga roogi sellest, mis kodus arvatavasti juba on, ja \u201EN\xE4dalaplaan\u201C aitab kogu n\xE4dala men\xFC\xFC ette planeerida."
+        "\u201EMinu retseptid\u201C all saad kirjutada, mida tahaksid s\xFC\xFCa (nt \u201Ekanakarri riisiga\u201C) ja mitmele inimesele. AI koostab retsepti koos kogustega ja \xE4pp \xFCtleb, mis peaks k\xFClmkapis juba olemas olema. Sinna saad kirja panna ka oma pere road. Retsepti avades vali, mitmele inimesele teed, ja \xE4pp arvutab kogused \xFCmber ning lisab puuduvad tooted ostunimekirja. \u201ERetseptisoovitused\u201C pakub AI abiga roogi sellest, mis kodus arvatavasti juba on, ja \u201EN\xE4dalaplaan\u201C aitab kogu n\xE4dala men\xFC\xFC ette planeerida."
       ],
       [
         "Kulud",
@@ -3286,6 +3326,10 @@ ${xref}
         label: "Retseptid ja N\xE4dalaplaan",
         items: [
           [
+            "Kuidas lasta AI-l retsept teha?",
+            "Ava Retseptid \u2192 \u201EMinu retseptid\u201C. Kirjuta kasti \u201EMida tahaksid s\xFC\xFCa?\u201C oma soov (nt \u201Ekanakarri riisiga\u201C v\xF5i \u201Emidagi kiiret kalast\u201C), vali mitmele inimesele ja vajuta \u201EKoosta retsept\u201C. AI koostab retsepti koos kogustega. Rohelises kastis on kirjas, mis peaks k\xFClmkapis juba olemas olema. Puuduvad tooted on linnukesega m\xE4rgitud ja \u201ELisa nimekirja\u201C paneb need koos kogustega ostunimekirja. Retsept salvestub \u201EMinu retseptid\u201C alla ja seda saab muuta."
+          ],
+          [
             "Kuidas oma retsepti teha ja tooted nimekirja saada?",
             "Ava Retseptid \u2192 \u201EMinu retseptid\u201C \u2192 \u201ELoo retsept\u201C. Kirjuta roa nimi, mitmele inimesele retsept on ning koostisosad koguse ja \xFChikuga. Retsepti avades vali \u201ETeen \u2026 inimesele\u201C, m\xE4rgi tooted, mida on vaja osta, ja vajuta \u201ELisa nimekirja\u201C. Nimekirjas on n\xE4ha kogus ja mis roa jaoks toode on. Kui sama toode on juba nimekirjas, liidetakse kogused kokku."
           ],
@@ -3376,8 +3420,51 @@ ${xref}
         }
       },
       /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16.5, letterSpacing: "-0.01em" } }, r.name),
-      /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, marginTop: 4, ...num } }, r.serves, " inimesele \xB7 ", r.items.length, " koostisosa")
+      /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, marginTop: 4, ...num } }, r.serves, " inimesele \xB7 ", r.items.length, " koostisosa", r.ai ? " \xB7 AI koostatud" : "")
     )));
+  }
+  function RecipeWish({ household, homeNames, onCreated }) {
+    const [wish, setWish] = useState("");
+    const [people, setPeople] = useState(household);
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState("");
+    const go = async () => {
+      if (!wish.trim() || busy) return;
+      setBusy(true);
+      setError("");
+      try {
+        const r = await fetchWishRecipe(wish.trim(), people, homeNames);
+        setWish("");
+        onCreated(r);
+      } catch (e) {
+        setError(friendlyError(e));
+      }
+      setBusy(false);
+    };
+    return /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 17, fontWeight: 600, marginBottom: 4 } }, "Mida tahaksid s\xFC\xFCa?"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13.5, color: T.faint, lineHeight: 1.5, marginBottom: 12 } }, "Kirjuta oma soov ja AI koostab retsepti koos kogustega. N\xE4ed, mis peaks kodus juba olemas olema, ja saad puuduva lisada ostunimekirja."), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        id: "nm-wish",
+        value: wish,
+        onChange: (e) => setWish(e.target.value),
+        onKeyDown: (e) => e.key === "Enter" && go(),
+        placeholder: "nt kanakarri riisiga",
+        style: field({ width: "100%", boxSizing: "border-box", marginBottom: 10 })
+      }
+    ), /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        style: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          marginBottom: 12
+        }
+      },
+      /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14.5 } }, "Mitmele inimesele"),
+      /* @__PURE__ */ React.createElement(QtyStepper, { value: people, onChange: setPeople, min: 1, max: 20 })
+    ), error && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.out, marginBottom: 10, lineHeight: 1.5 } }, error), /* @__PURE__ */ React.createElement(Btn, { kind: "solid", full: true, onClick: go, style: { opacity: wish.trim() || busy ? 1 : 0.6 } }, busy ? "Koostan retsepti\u2026" : "Koosta retsept"));
   }
   function MyRecipeEditor({ recipe, household, productNames, onSave, onDelete, onClose }) {
     const blankItem = () => ({ id: uid(), name: "", qty: "", unit: "g" });
@@ -3394,6 +3481,7 @@ ${xref}
       if (!name.trim()) return setError("Anna retseptile nimi.");
       if (!clean.length) return setError("Lisa v\xE4hemalt \xFCks koostisosa.");
       onSave({
+        ...recipe,
         id: recipe.id || uid(),
         name: name.trim(),
         serves,
@@ -3485,8 +3573,8 @@ ${xref}
       }
     )), error && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13.5, color: T.out, marginBottom: 10 } }, error), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Btn, { kind: "solid", style: { flex: 1 }, onClick: submit }, "Salvesta retsept"), /* @__PURE__ */ React.createElement(Btn, { onClick: onClose }, "Loobu")), onDelete && /* @__PURE__ */ React.createElement(ConfirmBtn, { label: "Kustuta retsept", confirmLabel: "Vajuta uuesti \u2014 kustutan", onConfirm: onDelete }));
   }
-  function MyRecipeSheet({ r, data, save, classify, household, onEdit, onClose }) {
-    const [people, setPeople] = useState(household);
+  function MyRecipeSheet({ r, data, save, classify, household, initialPeople, onEdit, onClose }) {
+    const [people, setPeople] = useState(initialPeople || household);
     const factor = people / (r.serves || 1);
     const inList = (n) => data.extras.some((e) => key(e.name) === key(n));
     const [picked, setPicked] = useState(
@@ -3520,7 +3608,24 @@ ${xref}
       setAdded(count);
       setPicked(picked.map(() => false));
     };
-    return /* @__PURE__ */ React.createElement(Sheet, { onClose, z: 60 }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, letterSpacing: "-0.02em", marginBottom: 4 } }, r.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13.5, color: T.faint, marginBottom: 14 } }, "Retsept on kirjutatud ", r.serves, " inimesele"), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15 } }, "Teen"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ React.createElement(QtyStepper, { value: people, onChange: (n) => (setPeople(n), setAdded(0)), min: 1, max: 20 }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 15 } }, "inimesele"))), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: 6 } }, "Koostisosad ", people, " inimesele"), r.items.map((i, idx) => {
+    return /* @__PURE__ */ React.createElement(Sheet, { onClose, z: 60 }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, letterSpacing: "-0.02em", marginBottom: 4 } }, r.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13.5, color: T.faint, marginBottom: 14 } }, r.blurb ? `${r.blurb} ` : "", r.ai ? "AI koostas retsepti" : "Retsept on kirjutatud", " ", r.serves, " inimesele", r.minutes ? ` \xB7 ${r.minutes} min` : ""), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15 } }, "Teen"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ React.createElement(QtyStepper, { value: people, onChange: (n) => (setPeople(n), setAdded(0)), min: 1, max: 20 }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 15 } }, "inimesele"))), /* @__PURE__ */ React.createElement(Panel, { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: 6 } }, "Koostisosad ", people, " inimesele"), (() => {
+      const home = r.items.filter((i) => classify(i.name) === "have").map((i) => i.name);
+      return /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          style: {
+            fontSize: 13.5,
+            lineHeight: 1.5,
+            marginBottom: 6,
+            padding: "10px 12px",
+            borderRadius: 12,
+            background: home.length ? tint(T.fresh, 0.1) : T.raised,
+            color: home.length ? T.fresh : T.soft
+          }
+        },
+        home.length ? `K\xFClmkapis peaks juba olemas olema: ${home.join(", ")}. Neid ei m\xE4rgitud ostmiseks, aga v\xF5id linnukese panna, kui on vaja juurde.` : "\xC4pi teada pole \xFChtegi koostisosa kodus. M\xE4rgitud tooted l\xE4hevad nimekirja."
+      );
+    })(), r.items.map((i, idx) => {
       const state = classify(i.name);
       const st = STATE[state];
       const listed = inList(i.name);
@@ -3590,6 +3695,7 @@ ${xref}
     const [open, setOpen] = useState(null);
     const [subTab, setSubTab] = useState("mine");
     const [openMine, setOpenMine] = useState(null);
+    const [openPeople, setOpenPeople] = useState(null);
     const [editing, setEditing] = useState(null);
     const myRecipes = data.myRecipes || [];
     const household = data.settings?.household || 2;
@@ -3624,7 +3730,28 @@ ${xref}
       background: on ? tint(T.gold, 0.16) : T.raised,
       color: on ? T.gold : T.soft
     });
-    return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("mine"), style: subTabChip(subTab === "mine") }, "Minu retseptid"), /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("recipes"), style: subTabChip(subTab === "recipes") }, "Retseptisoovitused"), /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("plan"), style: subTabChip(subTab === "plan") }, "N\xE4dalaplaan")), subTab === "mine" && /* @__PURE__ */ React.createElement(MyRecipesList, { recipes: myRecipes, onNew: () => setEditing({}), onOpen: (r) => setOpenMine(r.id) }), subTab === "plan" && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("mine"), style: subTabChip(subTab === "mine") }, "Minu retseptid"), /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("recipes"), style: subTabChip(subTab === "recipes") }, "Retseptisoovitused"), /* @__PURE__ */ React.createElement("button", { onClick: () => setSubTab("plan"), style: subTabChip(subTab === "plan") }, "N\xE4dalaplaan")), subTab === "mine" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
+      RecipeWish,
+      {
+        household,
+        homeNames: inStock.map((p) => p.name),
+        onCreated: (r) => {
+          save({ ...data, myRecipes: [r, ...myRecipes] });
+          setOpenPeople(r.serves);
+          setOpenMine(r.id);
+        }
+      }
+    ), /* @__PURE__ */ React.createElement(
+      MyRecipesList,
+      {
+        recipes: myRecipes,
+        onNew: () => setEditing({}),
+        onOpen: (r) => {
+          setOpenPeople(null);
+          setOpenMine(r.id);
+        }
+      }
+    )), subTab === "plan" && /* @__PURE__ */ React.createElement(
       MealPlanner,
       {
         data,
@@ -3739,6 +3866,7 @@ ${xref}
         save,
         classify,
         household,
+        initialPeople: openPeople,
         onEdit: (r) => {
           setOpenMine(null);
           setEditing(r);

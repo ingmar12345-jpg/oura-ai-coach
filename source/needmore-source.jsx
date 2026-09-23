@@ -605,6 +605,52 @@ Iga retsepti kohta 4-6 koostisosa ja 3-4 sammu. Kirjuta eesti keeles.`;
     }));
 }
 
+// Kasutaja vabast soovist ("kanakarri riisiga") retsept koos ostetavate kogustega
+const normUnit = (qty, unit) => {
+  const u = String(unit || "").toLowerCase().trim();
+  if (u === "dl") return { qty: qty * 100, unit: "ml" };
+  if (u === "cl") return { qty: qty * 10, unit: "ml" };
+  return { qty, unit: UNITS.includes(u) ? u : "tk" };
+};
+
+async function fetchWishRecipe(wish, people, homeNames) {
+  const prompt = `Kasutaja soovib süüa: "${wish}".
+Koosta sellest üks lihtne kodune retsept ${people} inimesele.
+Kodus on tõenäoliselt olemas: ${homeNames.join(", ") || "(teadmata)"}. Kui mõni neist sobib retsepti, kasuta koostisosa nimeks täpselt sama nime.
+
+Tagasta AINULT JSON, ilma selgituste ja koodiplokkideta, täpselt sellises kujus:
+{"name": "<roa nimi>", "minutes": <valmimisaeg minutites>, "blurb": "<üks lause, mis roog see on>",
+ "items": [{"name": "<lühike eestikeelne tootenimi nagu poes, nt Hakkliha, Sibul, Riis>", "qty": <kogus ${people} inimesele>, "unit": "<üks järgmistest: ${UNITS.join(", ")}>"}],
+ "steps": ["<üks lühike konkreetne valmistamise samm>"]}
+
+Reeglid:
+- kogused on ${people} inimesele ja sellistes ühikutes, nagu poest osta (g, ml, tk, pakk)
+- sool, pipar, õli ja maitseained: qty 0 (maitse järgi)
+- 4-10 koostisosa ja 4-8 sammu, kõik eesti keeles`;
+
+  const r = await callAI(prompt);
+  const items = (Array.isArray(r && r.items) ? r.items : [])
+    .filter((i) => i && i.name)
+    .map((i) => ({ name: String(i.name).trim(), ...normUnit(Math.max(0, Number(i.qty) || 0), i.unit) }));
+  if (!r || !r.name || !items.length) {
+    const err = new Error("Vastus tuli ootamatus vormingus");
+    err.code = "invalid_json";
+    throw err;
+  }
+  return {
+    id: uid(),
+    name: String(r.name).trim(),
+    serves: people,
+    items,
+    steps: (Array.isArray(r.steps) ? r.steps : []).map(String),
+    blurb: r.blurb ? String(r.blurb) : "",
+    minutes: Number(r.minutes) || null,
+    ai: true,
+    wish,
+    createdAt: today(),
+  };
+}
+
 async function fetchRecipeDetail(r, household) {
   const prompt = `Roog: ${r.name}, ${household} inimesele.
 Koostisosad: ${r.items.map((i) => `${i.name} ${i.amount}`).join(", ")}
@@ -3883,7 +3929,7 @@ function GuideSheet({ onClose }) {
     ],
     [
       "Retseptid ja Nädalaplaan",
-      "„Minu retseptid“ all saad kirja panna oma pere road koos kogustega. Retsepti avades vali, mitmele inimesele teed, ja äpp arvutab kogused ümber ning lisab puuduvad tooted ostunimekirja. „Retseptisoovitused“ pakub AI abiga roogi sellest, mis kodus arvatavasti juba on, ja „Nädalaplaan“ aitab kogu nädala menüü ette planeerida.",
+      "„Minu retseptid“ all saad kirjutada, mida tahaksid süüa (nt „kanakarri riisiga“) ja mitmele inimesele. AI koostab retsepti koos kogustega ja äpp ütleb, mis peaks külmkapis juba olemas olema. Sinna saad kirja panna ka oma pere road. Retsepti avades vali, mitmele inimesele teed, ja äpp arvutab kogused ümber ning lisab puuduvad tooted ostunimekirja. „Retseptisoovitused“ pakub AI abiga roogi sellest, mis kodus arvatavasti juba on, ja „Nädalaplaan“ aitab kogu nädala menüü ette planeerida.",
     ],
     [
       "Kulud",
@@ -4028,6 +4074,10 @@ function FaqSheet({ onClose }) {
       label: "Retseptid ja Nädalaplaan",
       items: [
         [
+          "Kuidas lasta AI-l retsept teha?",
+          "Ava Retseptid → „Minu retseptid“. Kirjuta kasti „Mida tahaksid süüa?“ oma soov (nt „kanakarri riisiga“ või „midagi kiiret kalast“), vali mitmele inimesele ja vajuta „Koosta retsept“. AI koostab retsepti koos kogustega. Rohelises kastis on kirjas, mis peaks külmkapis juba olemas olema. Puuduvad tooted on linnukesega märgitud ja „Lisa nimekirja“ paneb need koos kogustega ostunimekirja. Retsept salvestub „Minu retseptid“ alla ja seda saab muuta.",
+        ],
+        [
           "Kuidas oma retsepti teha ja tooted nimekirja saada?",
           "Ava Retseptid → „Minu retseptid“ → „Loo retsept“. Kirjuta roa nimi, mitmele inimesele retsept on ning koostisosad koguse ja ühikuga. Retsepti avades vali „Teen … inimesele“, märgi tooted, mida on vaja osta, ja vajuta „Lisa nimekirja“. Nimekirjas on näha kogus ja mis roa jaoks toode on. Kui sama toode on juba nimekirjas, liidetakse kogused kokku.",
         ],
@@ -4171,11 +4221,68 @@ function MyRecipesList({ recipes, onNew, onOpen }) {
         >
           <div style={{ fontSize: 16.5, letterSpacing: "-0.01em" }}>{r.name}</div>
           <div style={{ fontSize: 13, color: T.faint, marginTop: 4, ...num }}>
-            {r.serves} inimesele · {r.items.length} koostisosa
+            {r.serves} inimesele · {r.items.length} koostisosa{r.ai ? " · AI koostatud" : ""}
           </div>
         </div>
       ))}
     </div>
+  );
+}
+
+function RecipeWish({ household, homeNames, onCreated }) {
+  const [wish, setWish] = useState("");
+  const [people, setPeople] = useState(household);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const go = async () => {
+    if (!wish.trim() || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await fetchWishRecipe(wish.trim(), people, homeNames);
+      setWish("");
+      onCreated(r);
+    } catch (e) {
+      setError(friendlyError(e));
+    }
+    setBusy(false);
+  };
+
+  return (
+    <Panel style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>Mida tahaksid süüa?</div>
+      <div style={{ fontSize: 13.5, color: T.faint, lineHeight: 1.5, marginBottom: 12 }}>
+        Kirjuta oma soov ja AI koostab retsepti koos kogustega. Näed, mis peaks kodus juba olemas
+        olema, ja saad puuduva lisada ostunimekirja.
+      </div>
+      <input
+        id="nm-wish"
+        value={wish}
+        onChange={(e) => setWish(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && go()}
+        placeholder="nt kanakarri riisiga"
+        style={field({ width: "100%", boxSizing: "border-box", marginBottom: 10 })}
+      />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          marginBottom: 12,
+        }}
+      >
+        <span style={{ fontSize: 14.5 }}>Mitmele inimesele</span>
+        <QtyStepper value={people} onChange={setPeople} min={1} max={20} />
+      </div>
+      {error && (
+        <div style={{ fontSize: 13, color: T.out, marginBottom: 10, lineHeight: 1.5 }}>{error}</div>
+      )}
+      <Btn kind="solid" full onClick={go} style={{ opacity: wish.trim() || busy ? 1 : 0.6 }}>
+        {busy ? "Koostan retsepti…" : "Koosta retsept"}
+      </Btn>
+    </Panel>
   );
 }
 
@@ -4198,6 +4305,7 @@ function MyRecipeEditor({ recipe, household, productNames, onSave, onDelete, onC
     if (!name.trim()) return setError("Anna retseptile nimi.");
     if (!clean.length) return setError("Lisa vähemalt üks koostisosa.");
     onSave({
+      ...recipe,
       id: recipe.id || uid(),
       name: name.trim(),
       serves,
@@ -4333,8 +4441,8 @@ function MyRecipeEditor({ recipe, household, productNames, onSave, onDelete, onC
   );
 }
 
-function MyRecipeSheet({ r, data, save, classify, household, onEdit, onClose }) {
-  const [people, setPeople] = useState(household);
+function MyRecipeSheet({ r, data, save, classify, household, initialPeople, onEdit, onClose }) {
+  const [people, setPeople] = useState(initialPeople || household);
   const factor = people / (r.serves || 1);
   const inList = (n) => data.extras.some((e) => key(e.name) === key(n));
   const [picked, setPicked] = useState(() =>
@@ -4375,7 +4483,9 @@ function MyRecipeSheet({ r, data, save, classify, household, onEdit, onClose }) 
     <Sheet onClose={onClose} z={60}>
       <div style={{ fontSize: 22, letterSpacing: "-0.02em", marginBottom: 4 }}>{r.name}</div>
       <div style={{ fontSize: 13.5, color: T.faint, marginBottom: 14 }}>
-        Retsept on kirjutatud {r.serves} inimesele
+        {r.blurb ? `${r.blurb} ` : ""}
+        {r.ai ? "AI koostas retsepti" : "Retsept on kirjutatud"} {r.serves} inimesele
+        {r.minutes ? ` · ${r.minutes} min` : ""}
       </div>
 
       <Panel style={{ marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
@@ -4388,6 +4498,26 @@ function MyRecipeSheet({ r, data, save, classify, household, onEdit, onClose }) 
 
       <Panel style={{ marginBottom: 10 }}>
         <Label style={{ marginBottom: 6 }}>Koostisosad {people} inimesele</Label>
+        {(() => {
+          const home = r.items.filter((i) => classify(i.name) === "have").map((i) => i.name);
+          return (
+            <div
+              style={{
+                fontSize: 13.5,
+                lineHeight: 1.5,
+                marginBottom: 6,
+                padding: "10px 12px",
+                borderRadius: 12,
+                background: home.length ? tint(T.fresh, 0.1) : T.raised,
+                color: home.length ? T.fresh : T.soft,
+              }}
+            >
+              {home.length
+                ? `Külmkapis peaks juba olemas olema: ${home.join(", ")}. Neid ei märgitud ostmiseks, aga võid linnukese panna, kui on vaja juurde.`
+                : "Äpi teada pole ühtegi koostisosa kodus. Märgitud tooted lähevad nimekirja."}
+            </div>
+          );
+        })()}
         {r.items.map((i, idx) => {
           const state = classify(i.name);
           const st = STATE[state];
@@ -4488,6 +4618,7 @@ function RecipesView({ data, save, products }) {
   const [open, setOpen] = useState(null);
   const [subTab, setSubTab] = useState("mine"); // "mine" | "recipes" | "plan"
   const [openMine, setOpenMine] = useState(null); // oma retsepti id
+  const [openPeople, setOpenPeople] = useState(null); // AI retsepti avamisel soovitud inimeste arv
   const [editing, setEditing] = useState(null); // {} = uus, retsept = muutmine
 
   const myRecipes = data.myRecipes || [];
@@ -4549,7 +4680,25 @@ function RecipesView({ data, save, products }) {
       </div>
 
       {subTab === "mine" && (
-        <MyRecipesList recipes={myRecipes} onNew={() => setEditing({})} onOpen={(r) => setOpenMine(r.id)} />
+        <>
+          <RecipeWish
+            household={household}
+            homeNames={inStock.map((p) => p.name)}
+            onCreated={(r) => {
+              save({ ...data, myRecipes: [r, ...myRecipes] });
+              setOpenPeople(r.serves);
+              setOpenMine(r.id);
+            }}
+          />
+          <MyRecipesList
+            recipes={myRecipes}
+            onNew={() => setEditing({})}
+            onOpen={(r) => {
+              setOpenPeople(null);
+              setOpenMine(r.id);
+            }}
+          />
+        </>
       )}
 
       {subTab === "plan" && (
@@ -4709,6 +4858,7 @@ function RecipesView({ data, save, products }) {
           save={save}
           classify={classify}
           household={household}
+          initialPeople={openPeople}
           onEdit={(r) => {
             setOpenMine(null);
             setEditing(r);

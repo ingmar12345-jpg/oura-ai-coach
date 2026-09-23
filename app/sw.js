@@ -1,4 +1,4 @@
-const CACHE = "needmore-v19";
+const CACHE = "needmore-v20";
 const ASSETS = [
   "./", "./index.html", "./app.js",
   "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png",

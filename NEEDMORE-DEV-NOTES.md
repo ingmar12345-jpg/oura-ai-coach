@@ -368,3 +368,15 @@ Pro täppi, `plan` prop/kontroll on koodist eemaldatud ja Juhend/KKK ei maini
 Pro paketti. Vana loogika on git ajaloos (commit enne seda), kui Pro tuleb
 hiljem tagasi. Profiilidesse varem salvestatud `plan` väli jääb kasutamata.
 CACHE -> `needmore-v19`.
+
+## 23.09.2026: AI retsept vabast soovist
+
+"Minu retseptid" ülaosas on `RecipeWish`: kast "Mida tahaksid süüa?" + mitmele
+inimesele + "Koosta retsept". `fetchWishRecipe(wish, people, homeNames)` palub
+AI-lt JSON-i {name, minutes, blurb, items:[{name, qty, unit}], steps}; kodus
+olevate toodete nimed antakse kaasa, et AI kasutaks samu nimesid (siis töötab
+"kodus olemas" tuvastus). Ühikud normaliseeritakse (`normUnit`: dl/cl -> ml,
+tundmatu -> tk). Retsept salvestub `myRecipes` algusesse (`ai: true`, `wish`,
+`blurb`, `minutes`) ja avaneb kohe soovitud inimeste arvuga.
+MyRecipeSheet näitab rohelist kasti "Külmkapis peaks juba olemas olema: …".
+Juhend ja KKK uuendatud. CACHE -> `needmore-v20`.
