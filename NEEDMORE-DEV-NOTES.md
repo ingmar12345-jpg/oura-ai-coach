@@ -281,3 +281,11 @@ tavalisteks toodeteks (`NOT_BAG_WORDS`).
 
 Ehitus: `app/app.js` = `esbuild source/needmore-source.jsx --format=iife`
 (esbuild 0.23). CACHE -> `needmore-v11`.
+
+## 23.09.2026: "Veel kodus"
+
+Nimekirja all olev "Jälgin veel" (tooted progressiga 0.35–0.7) nimetati
+ümber "Veel kodus". Pealkirja all on selgitav rida, iga toote juures
+"jätkub veel ~N päeva" ja õhuke progressiriba põhinimekirja värvidega.
+KKK "Nimekiri ja ennustus" alla lisati küsimus selle kohta.
+CACHE -> `needmore-v12`.

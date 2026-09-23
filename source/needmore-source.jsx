@@ -1868,21 +1868,44 @@ function ListView({ products, data, save, onOpen }) {
 
       {watching.length > 0 && (
         <div style={{ marginTop: 26 }}>
-          <Label>Jälgin veel</Label>
+          <Label>Veel kodus</Label>
+          <div style={{ fontSize: 13, color: T.faint, lineHeight: 1.5, margin: "-2px 2px 6px" }}>
+            Need peaksid kodus veel jätkuma. Kui mõni hakkab otsa saama, tõstab äpp selle ise
+            üles nimekirja.
+          </div>
           {watching.map((p) => (
-            <div
-              key={p.k}
-              onClick={() => onOpen(p)}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "11px 2px",
-                cursor: "pointer",
-              }}
-            >
-              <span style={{ fontSize: 15 }}>{p.name}</span>
-              <span style={{ fontSize: 13.5, color: T.faint, ...num }}>{p.daysLeft} p</span>
+            <div key={p.k} onClick={() => onOpen(p)} style={{ padding: "11px 2px", cursor: "pointer" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  gap: 12,
+                }}
+              >
+                <span style={{ fontSize: 15 }}>{p.name}</span>
+                <span style={{ fontSize: 13.5, color: T.faint, whiteSpace: "nowrap", ...num }}>
+                  jätkub veel ~{p.daysLeft} {p.daysLeft === 1 ? "päev" : "päeva"}
+                </span>
+              </div>
+              <div
+                style={{
+                  height: 4,
+                  borderRadius: 2,
+                  background: tint(T.ink, 0.06),
+                  overflow: "hidden",
+                  marginTop: 7,
+                }}
+              >
+                <div
+                  style={{
+                    width: `${Math.min(p.progress / 1.3, 1) * 100}%`,
+                    height: "100%",
+                    background: progressColor(p.progress),
+                    borderRadius: 2,
+                  }}
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -3759,6 +3782,10 @@ function FaqSheet({ onClose }) {
         [
           "Kuidas äpp teab, mis on kodus otsas?",
           "Äpp vaatab sinu ostuajalugu: kui tihti oled mingit toodet varem ostnud, arvutab keskmise „kestvuse“ ja näitab tootel riba, mis täitub selle aja jooksul. Kui riba jõuab lõpuni, läheb toode „otsas“ olekusse ja tõuseb Nimekirja. Mida rohkem tšekke lisad, seda täpsem ennustus on.",
+        ],
+        [
+          "Mis on nimekirja all olev „Veel kodus“?",
+          "Seal on tooted, mis peaksid kodus veel jätkuma, aga on juba poole peal. „Jätkub veel ~5 päeva“ näitab, mitu päeva toode äpi hinnangul veel kestab. Tooted satuvad sinna ise tšekkide põhjal ja kui mõni hakkab otsa saama, tõstab äpp selle üles nimekirja. Poekotti seal ei näidata.",
         ],
         [
           "Miks äpp arvab, et miski on otsas, kuigi seda on veel kodus?",

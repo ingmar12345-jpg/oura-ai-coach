@@ -1644,22 +1644,41 @@ ${xref}
         onClick: () => setQuickStart(true)
       },
       "Lisa veel tavalisi tooteid"
-    ), watching.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 26 } }, /* @__PURE__ */ React.createElement(Label, null, "J\xE4lgin veel"), watching.map((p) => /* @__PURE__ */ React.createElement(
+    ), watching.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 26 } }, /* @__PURE__ */ React.createElement(Label, null, "Veel kodus"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: T.faint, lineHeight: 1.5, margin: "-2px 2px 6px" } }, "Need peaksid kodus veel j\xE4tkuma. Kui m\xF5ni hakkab otsa saama, t\xF5stab \xE4pp selle ise \xFCles nimekirja."), watching.map((p) => /* @__PURE__ */ React.createElement("div", { key: p.k, onClick: () => onOpen(p), style: { padding: "11px 2px", cursor: "pointer" } }, /* @__PURE__ */ React.createElement(
       "div",
       {
-        key: p.k,
-        onClick: () => onOpen(p),
         style: {
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
-          padding: "11px 2px",
-          cursor: "pointer"
+          alignItems: "baseline",
+          gap: 12
         }
       },
       /* @__PURE__ */ React.createElement("span", { style: { fontSize: 15 } }, p.name),
-      /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13.5, color: T.faint, ...num } }, p.daysLeft, " p")
-    ))), cartCount > 0 && /* @__PURE__ */ React.createElement(
+      /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13.5, color: T.faint, whiteSpace: "nowrap", ...num } }, "j\xE4tkub veel ~", p.daysLeft, " ", p.daysLeft === 1 ? "p\xE4ev" : "p\xE4eva")
+    ), /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        style: {
+          height: 4,
+          borderRadius: 2,
+          background: tint(T.ink, 0.06),
+          overflow: "hidden",
+          marginTop: 7
+        }
+      },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          style: {
+            width: `${Math.min(p.progress / 1.3, 1) * 100}%`,
+            height: "100%",
+            background: progressColor(p.progress),
+            borderRadius: 2
+          }
+        }
+      )
+    )))), cartCount > 0 && /* @__PURE__ */ React.createElement(
       "div",
       {
         style: {
@@ -3130,6 +3149,10 @@ ${xref}
           [
             "Kuidas \xE4pp teab, mis on kodus otsas?",
             "\xC4pp vaatab sinu ostuajalugu: kui tihti oled mingit toodet varem ostnud, arvutab keskmise \u201Ekestvuse\u201C ja n\xE4itab tootel riba, mis t\xE4itub selle aja jooksul. Kui riba j\xF5uab l\xF5puni, l\xE4heb toode \u201Eotsas\u201C olekusse ja t\xF5useb Nimekirja. Mida rohkem t\u0161ekke lisad, seda t\xE4psem ennustus on."
+          ],
+          [
+            "Mis on nimekirja all olev \u201EVeel kodus\u201C?",
+            "Seal on tooted, mis peaksid kodus veel j\xE4tkuma, aga on juba poole peal. \u201EJ\xE4tkub veel ~5 p\xE4eva\u201C n\xE4itab, mitu p\xE4eva toode \xE4pi hinnangul veel kestab. Tooted satuvad sinna ise t\u0161ekkide p\xF5hjal ja kui m\xF5ni hakkab otsa saama, t\xF5stab \xE4pp selle \xFCles nimekirja. Poekotti seal ei n\xE4idata."
           ],
           [
             "Miks \xE4pp arvab, et miski on otsas, kuigi seda on veel kodus?",
