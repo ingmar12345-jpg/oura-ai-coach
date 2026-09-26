@@ -380,3 +380,8 @@ tundmatu -> tk). Retsept salvestub `myRecipes` algusesse (`ai: true`, `wish`,
 `blurb`, `minutes`) ja avaneb kohe soovitud inimeste arvuga.
 MyRecipeSheet näitab rohelist kasti "Külmkapis peaks juba olemas olema: …".
 Juhend ja KKK uuendatud. CACHE -> `needmore-v20`.
+
+## 26.09.2026: poekott soovitustest välja
+
+"Ostad neid kõige sagedamini" soovitustes (ListView `suggestions`) ei näidata
+enam poekotti (`!x.bag`). CACHE -> `needmore-v21`.

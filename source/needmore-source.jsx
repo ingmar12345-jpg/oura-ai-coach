@@ -1681,6 +1681,7 @@ function ListView({ products, data, save, onOpen }) {
   const suggestions = products
     .filter(
       (x) =>
+        !x.bag &&
         (!q || x.name.toLowerCase().includes(q)) &&
         !data.extras.some((e) => key(e.name) === x.k) &&
         !needed.some((nd) => nd.k === x.k)

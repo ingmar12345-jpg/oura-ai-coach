@@ -1465,7 +1465,7 @@ ${xref}
     }, [notice]);
     const q = newItem.trim().toLowerCase();
     const suggestions = products.filter(
-      (x) => (!q || x.name.toLowerCase().includes(q)) && !data.extras.some((e) => key(e.name) === x.k) && !needed.some((nd) => nd.k === x.k)
+      (x) => !x.bag && (!q || x.name.toLowerCase().includes(q)) && !data.extras.some((e) => key(e.name) === x.k) && !needed.some((nd) => nd.k === x.k)
     ).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)).slice(0, 8);
     const catOf = (p) => CATEGORY_ORDER.includes(p.category) ? p.category : "Muu";
     const groups = order ? order.map((cat) => [cat, needed.filter((p) => catOf(p) === cat)]).filter(([, items]) => items.length) : [[null, needed]];
